@@ -251,6 +251,17 @@ Source: CRAN
 Version: 0.4.0
 Hash: eabda67321fe1d477ea641ddd5d84f00
 
+Package: rsconnect
+Source: CRAN
+Version: 0.8.15
+Hash: 719af4e7c0e9e66b54eeed20de52a6a8
+Requires: curl, jsonlite, openssl, packrat, rstudioapi, yaml
+
+Package: rstudioapi
+Source: CRAN
+Version: 0.10
+Hash: 63f43c6ff14d92e1d65ca6c21d45a1eb
+
 Package: scales
 Source: CRAN
 Version: 1.0.0
