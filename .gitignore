@@ -1,0 +1,8 @@
+packrat/lib*/
+.Rhistory
+.Rprofile
+.Rproj.user
+metadataset-shiny/app_debugger.yml
+metadataset-shiny/config.yml
+metadataset-shiny/shiny_bookmarks
+

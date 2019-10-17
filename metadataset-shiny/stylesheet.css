@@ -1,0 +1,55 @@
+@import url("https://fonts.googleapis.com/css?family=Noto+Serif:400,400i&amp;subset=greek,greek-ext,latin-ext");
+@import url("https://fonts.googleapis.com/css?family=Noto+Sans:400,400i&amp;subset=greek,greek-ext,latin-ext");
+
+body {
+  font-family: "Noto Serif", sans-serif;
+  font-size: 1.5rem;
+}
+
+h1 {
+  font-family: "Noto Serif", serif;
+  font-size: 3rem;
+}
+
+span.bold {
+  font-weight: bold;
+}
+
+span.italic {
+  font-style: italic;
+}
+
+span.red {
+  color: #ff6666;
+}
+
+#loading_window {
+  position: absolute;
+  width: 6em;
+  height: 6em;
+  top: 50%;
+  left: 50%;
+  margin: -3em 0 0 -3em;
+  border-radius: 5%;
+  background-color: rgba(0, 0, 0, 0.1);
+  z-index: 105;
+}
+
+#loading_progress {
+  position: absolute;
+  width: 3em;
+  height: 3em;
+  left: 50%;
+  top: 50%;
+  margin: -1.5em 0 0 -1.5em;
+  border: 0.5em solid #ffffff;
+  border-top: 0.5em solid #3399ff;
+  border-radius: 50%;
+  animation: spin 2s linear infinite;
+  z-index: 110;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
