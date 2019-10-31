@@ -242,14 +242,14 @@ server <- function(input, output, session) {
     #outcome <- "455"  # Weed abundance
     #outcome <- "456"  # Weed diversity
     
-    # Connect to AWS S3
+    # Connect to AWS S3 using credentials for the user, "metadataset-shiny".
     s3_credentials <- config::get("s3")
     Sys.setenv(
       "AWS_ACCESS_KEY_ID" = s3_credentials$AWS_ACCESS_KEY_ID,
       "AWS_SECRET_ACCESS_KEY" = s3_credentials$AWS_SECRET_ACCESS_KEY,
       "AWS_DEFAULT_REGION" = s3_credentials$AWS_DEFAULT_REGION
     )
-    s3_bucket <- "metadataset-shiny"
+    s3_bucket <- "metadataset-shiny-cache"
     
     # Get the data from the API
     local_host <- "http://127.0.0.1:8000/api/"
