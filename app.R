@@ -171,6 +171,10 @@ server <- function(input, output, session) {
     
     # Get the url parameters that were used to launch the app
     # For example, subject=6 for https://www.metadataset.com/api/data/?subject=6
+    protocol <- isolate(session$clientData$url_protocol)
+    hostname <- isolate(session$clientData$url_hostname)
+    pathname <- isolate(session$clientData$url_pathname)
+    port <- isolate(session$clientData$url_port)
     query <- parseQueryString(isolate(session$clientData$url_search))
     if (!is.null(query[['subject']])) {
       subject <- query[['subject']]
@@ -200,6 +204,11 @@ server <- function(input, output, session) {
       user <- query[['user']]
     } else {
       user <- ""
+    }
+    if (!is.null(query[['bookmark']])) {
+      bookmark <- query[['bookmark']]
+    } else {
+      bookmark <- ""
     }
     if (!is.null(query[['refresh']])) {
       use_cached_data <- FALSE
@@ -610,6 +619,28 @@ server <- function(input, output, session) {
   
   
   
+  # Use bookmarked settings, if they exist
+  if (bookmark != "") {
+    bookmarked_settings <- paste(cache, "settings_", bookmark, ".rds", sep = "")
+    bookmarked_settings <- s3readRDS(bookmarked_settings, s3_bucket, check_region=FALSE)
+    updateSelectInput(session, "column_names", selected = bookmarked_settings[["column_names"]])
+    updateSliderInput(session, "significant_p", value = bookmarked_settings[["significant_p"]])
+    updateSliderInput(session, "non_significant_p", value = bookmarked_settings[["non_significant_p"]])
+    updateCheckboxInput(session, "v_from_p", value = bookmarked_settings[["v_from_p"]])
+    updateCheckboxInput(session, "v_outliers", value = bookmarked_settings[["v_outliers"]])
+    updateSliderInput(session, "v_outliers_threshold", value = bookmarked_settings[["v_outliers_threshold"]])
+    updateCheckboxInput(session, "impute_v", value = bookmarked_settings[["impute_v"]])
+    for (this_attribute in attributes_df$encoded_attribute) {
+      updateSelectInput(session, this_attribute, selected = bookmarked_settings[[this_attribute]])
+    }
+    for (this_outcome in encoded_outcomes) {
+      updateCheckboxInput(session, this_outcome, value = bookmarked_settings[[this_outcome]])
+    }
+  }
+  
+  
+  
+  
   #####################
   # Reactive components
   #####################
@@ -617,7 +648,7 @@ server <- function(input, output, session) {
   
   
   
-  inputs_for_digest <- reactive({
+  settings <- reactive({
     all_inputs <- reactiveValuesToList(input)
     if("go" %in% names(all_inputs)) all_inputs$go <- NULL
     if("make_bookmark" %in% names(all_inputs)) all_inputs$make_bookmark <- NULL
@@ -630,7 +661,7 @@ server <- function(input, output, session) {
     all_inputs <- all_inputs[order(names(all_inputs))]
     return(all_inputs)
   })
-  
+
   
   
   
@@ -771,7 +802,7 @@ server <- function(input, output, session) {
       n_rows <- length(d$es_and_v)
       n_publications <- length(unique(d$publication))
       use_cached_data <- rv[["use_cached_data"]]
-      cached_results <- paste(cache, "results_", digest(inputs_for_digest()), ".rds", sep = "")
+      cached_results <- paste(cache, "results_", digest(settings()), ".rds", sep = "")
       if (use_cached_data == TRUE & head_object(cached_results, s3_bucket, check_region=FALSE)) {
         results <- s3readRDS(cached_results, s3_bucket, check_region=FALSE)
       } else {
@@ -1002,7 +1033,7 @@ server <- function(input, output, session) {
         "<span class='hidden' id='intervention_pk'>", intervention_pk, "</span>", 
         "<span class='hidden' id='outcome_pk'>", outcome_pk, "</span>", 
         "<span class='hidden' id='api_query_string'>", api_query_string, "</span>", 
-        "<span class='hidden' id='user_settings'>", digest(inputs_for_digest()), "</span>", 
+        "<span class='hidden' id='user_settings'>", digest(settings()), "</span>", 
         sep = ""))
         } else {
           HTML("<span class='red'>Not enough data for meta-analysis</span>")
@@ -1143,13 +1174,10 @@ server <- function(input, output, session) {
   
   
   
-  setBookmarkExclude(c("make_bookmark", "go"))
   observeEvent(input$make_bookmark, {
-    session$doBookmark()
-  })
-  
-  onBookmarked(function(url) {
-    rv[["bookmark_url"]] <- paste(url, "&", api_query_string, sep="")
+    bookmark_object <- paste(cache, "settings_", digest(settings()), ".rds", sep = "")
+    s3saveRDS(settings(), object = bookmark_object, s3_bucket, check_region=FALSE)
+    rv[["bookmark_url"]] <- paste(protocol, "//", hostname, if (port != "") ":", port, pathname, "?bookmark=", digest(settings()), "&", api_query_string, sep="")
     output$bookmark_link <- renderUI(HTML(paste(
       "Save this link to reload your analysis later: <a id='shiny_bookmark' href='", 
       rv[["bookmark_url"]], 
@@ -1157,16 +1185,6 @@ server <- function(input, output, session) {
       rv[["bookmark_url"]], 
       "</a>"
     )))
-  })
-  
-  onRestore(function(state) {
-    updateSelectInput(session, "column_names", selected = state$input[["column_names"]])
-    for (attribute in attributes_df$encoded_attribute) {
-      updateSelectInput(session, attribute, selected = state$input[[attribute]])
-    }
-    for (outcome in encoded_outcomes) {
-      updateCheckboxInput(session, outcome, value = state$input[[outcome]])
-    }
   })
   
   
@@ -1177,10 +1195,14 @@ server <- function(input, output, session) {
   
   #output$debug1 <- renderPrint(attributes_df[3])  # Encoded attributes
   #output$debug1 <- renderPrint(get_filter(input[[paste(attributes_df$attribute[4])]], df[[paste(attributes_df$attribute[4])]]))
-  #output$debug1 <- renderPrint(digest(inputs_for_digest()))  # Hash for results on S3
-  #output$debug1 <- renderPrint(digest(api_query_string))     # Hash for data folder on S3
-  #output$debug2 <- renderPrint(inputs_for_digest())
+  #output$debug1 <- renderPrint(digest(settings()))  # Hash for results on S3
+  #output$debug1 <- renderPrint(bookmarked_settings)
+  #output$debug2 <- renderPrint(settings())
+  #output$debug2 <- renderPrint(digest(api_query_string))     # Hash for data folder on S3
+  #output$debug2 <- renderPrint(settings())
   #output$debug2 <- renderPrint(rv[["use_cached_data"]])
+  #output$debug2 <- renderPrint(settings()[1][[1]])
+  
   
   
   
@@ -1191,4 +1213,4 @@ server <- function(input, output, session) {
 
 
 # Run the app ----
-shinyApp(ui = ui, server = server, enableBookmarking = "server")
+shinyApp(ui = ui, server = server)
