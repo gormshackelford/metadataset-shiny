@@ -220,8 +220,8 @@ server <- function(input, output, session) {
     #subject = 2
     
     # Uncomment the following for testing the data on Japanese knotweed.
-    subject = 8
-    outcome = 348  # Plants (weeds and invasive species)
+    #subject = 8
+    #outcome = 348  # Plants (weeds and invasive species)
 
     # Uncomment the following for testing the data on Japanese knotweed.
     #subject = 7
