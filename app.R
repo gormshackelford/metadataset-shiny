@@ -220,6 +220,10 @@ server <- function(input, output, session) {
     #subject = 2
     
     # Uncomment the following for testing the data on Japanese knotweed.
+    subject = 8
+    outcome = 348  # Plants (weeds and invasive species)
+
+    # Uncomment the following for testing the data on Japanese knotweed.
     #subject = 7
     #intervention = 774  # Herbicides
     #intervention = 782  # Cutting/chopping
@@ -720,6 +724,7 @@ server <- function(input, output, session) {
     } else {
       df$selected_v <- df$v_from_sd_and_n
     }
+    df$selected_v[is.infinite(df$selected_v)] <- NA
     
     # Define independent data points "studies" within publications, based on user input.
     df$study <- paste("Study ID ", df$study_id, sep = "")

@@ -1,8 +1,8 @@
 packrat/lib*/
+.Rdata
 .Rhistory
 .Rprofile
 .Rproj.user
 config.yml
 rsconnect
-shiny_bookmarks
 
