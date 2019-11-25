@@ -102,6 +102,9 @@ ui <- function(request) { fluidPage(
           HTML('<br />'),
           HTML('<br />'),
           uiOutput('debug2'),
+          HTML('<br />'),
+          HTML('<br />'),
+          uiOutput('debug3'),
           HTML('<br />')
         )
         )
@@ -222,7 +225,7 @@ server <- function(input, output, session) {
     # Uncomment the following for testing the data on Japanese knotweed.
     #subject = 8
     #outcome = 348  # Plants (weeds and invasive species)
-
+    
     # Uncomment the following for testing the data on Japanese knotweed.
     #subject = 7
     #intervention = 774  # Herbicides
@@ -232,6 +235,7 @@ server <- function(input, output, session) {
     #subject = 8
     #intervention = 774  # Herbicides
     #intervention = 782  # Cutting/chopping
+    #outcome = 348  # Plants (weeds and invasive species)
     
     # Uncomment the following for testing the data on Giant hogweed.
     #subject = 10
@@ -250,6 +254,7 @@ server <- function(input, output, session) {
     #outcome <- "166"  # Crop damage
     #outcome <- "455"  # Weed abundance
     #outcome <- "456"  # Weed diversity
+    #publication = "22270"
     
     # Connect to AWS S3 using credentials for the user, "metadataset-shiny".
     s3_credentials <- config::get("s3")
@@ -377,7 +382,8 @@ server <- function(input, output, session) {
       df$Country <- df$intervention_country
       df$Country[!is.na(df$population_country)] <- df$population_country[!is.na(df$population_country)]
       df$Country[!is.na(df$outcome_country)] <- df$outcome_country[!is.na(df$outcome_country)]
-      
+      df$Country <- lapply(df$Country, unlist)
+
       # Study
       df$intervention_study_id <- lapply(df$intervention_study, function(x) if(is.null(x[["study_id"]])) NA else x[["study_id"]])
       df$intervention_study_name <- lapply(df$intervention_study, function(x) if(is.null(x[["study_name"]])) NA else x[["study_name"]])
@@ -796,9 +802,13 @@ server <- function(input, output, session) {
   # a string ("pattern"), with the OR operator ("|") between terms 
   # (for comparisons using grepl)
   get_filter <- function(input, variable) {
+    # Delete non-alphanumeric characters from the input (e.g., replace "Barley and hairy vetch" with "Barleyandhairyvetch").
     pattern <- gsub("[^[:alnum:]]", "", input)
+    # Add word boundaries ("\\b") and insert the "OR" operator ("|") between inputs. This stops the input "Barley" from matching "Barleyandhairyvetch".
     pattern <- paste("\\b", pattern, "\\b", collapse = "|", sep = "")
-    x <- gsub("[^[:alnum:]]", "", variable)
+    pattern <- paste(pattern, collapse = "|", sep = "")
+    #x <- gsub("[^[:alnum:]]", "", variable)
+    x <- lapply(variable, function(x) gsub("[^[:alnum:]]", "", x)) 
     return(list(pattern = pattern, x = x))
   }
   
@@ -944,11 +954,46 @@ server <- function(input, output, session) {
         n_rows <- length(di$es_and_v)
         citation <- unique(di$citation)
         results_by_publication_df$citation[i] <- citation
-        design <- tolower(unique(di$Design))
-        country <- unique(di$Country)
-        if (country %in% plural_countries) {
-          country <- paste("the", country, sep = " ")
+        
+        countries <- unique(unlist(di$Country))
+        get_countries <- function() {
+          if (length(countries) > 1) {
+            countries <- sort(countries)
+            result <- "multiple countries ("
+            for (i in 1:length(countries)) {
+              if (i == 1) {
+                result = paste(result, countries[i], sep = "")
+              } else if (i == length(countries)) {
+                result = paste(result, countries[i], sep = " and ")
+                result = paste(result, ")", sep = "")
+              } else {
+                result = paste(result, countries[i], sep = ", ")
+              }
+            }
+          } else {
+            result = countries[1]
+          }
+          return(result)
         }
+        country <- if(!is.null(countries)) { get_countries() }
+        
+        designs <- unique(unlist(di$Design))
+        get_designs <- function() {
+          if (length(designs) > 1) {
+            for (i in 1:length(designs)) {
+              if (i == 1) {
+                result = designs[i]
+              } else {
+                result = paste(result, designs[i], sep = ", ")
+              }
+            }
+          } else {
+            result = designs[1]
+          }
+          return(tolower(result))
+        }
+        design <- if(!is.null(designs)) { get_designs() }
+
         location <- unique(di$Location)
         methods <- unique(di$Methods)
         if (n_rows > 1) {
@@ -995,11 +1040,11 @@ server <- function(input, output, session) {
           upper_percent <- "0% different"
         }
         this_paragraph <- paste(
-          "Based on data from a ", design, " study ", if (!is.na(location)) location 
-          else if (country != "NA") paste("in <span class='bold'>", country, "</span>"), " (",
-          if (citation != "") citation else "[CITATION]", ") this outcome was <span class='bold'>", 
-          percent, "</span><sup>1</sup> with this intervention than it was without this 
-          intervention (<span class='bold'>between ", lower_percent, " and ", upper_percent, 
+          "Based on data from a ", if(!is.null(design)) design, " study ", if (!is.na(location)) 
+          location else if(!is.null(country)) paste("in <span class='bold'>", country, "</span>"), 
+          " (", if (citation != "") citation else "[CITATION]", ") this outcome was <span 
+          class='bold'>", percent, "</span><sup>1</sup> with this intervention than it was without 
+          this intervention (<span class='bold'>between ", lower_percent, " and ", upper_percent, 
           "</span> based on the 95% confidence interval). <span class='bold'> Methods: </span>", 
           if (!is.na(methods)) methods else paste("[METHODS]"), sep = ""
           )
@@ -1213,6 +1258,14 @@ server <- function(input, output, session) {
   
   output$debug1 <- renderUI("")
   output$debug2 <- renderUI("")
+  output$debug3 <- renderUI("")
+  
+  #output$debug1 <- renderPrint(df$Country)
+  #inp <- lapply(df$Country, function(x) gsub("[^[:alnum:]]", "", x)) 
+  #output$debug2 <- renderPrint(inp)
+  #pat <- gsub("[^[:alnum:]]", "", "American Samoa")
+  #pat <- paste("\\b", pat, "\\b", collapse = "|", sep = "")
+  #output$debug3 <- renderPrint(grepl(pat, inp))
   
   #output$debug1 <- renderPrint(attributes_df[3])  # Encoded attributes
   #output$debug1 <- renderPrint(get_filter(input[[paste(attributes_df$attribute[4])]], df[[paste(attributes_df$attribute[4])]]))
