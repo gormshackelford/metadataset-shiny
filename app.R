@@ -599,12 +599,13 @@ server <- function(input, output, session) {
     output$data_filters <- renderUI({
       lapply(1:length(attributes_df$attribute), function(i) {
         if(attributes_df$type[i] == "factor") {
+          options <- sort(unique(unlist(df[[paste(attributes_df$attribute[i])]])))
           tagList(
-            selectInput(paste(attributes_df$encoded_attribute[i]), paste(attributes_df$attribute[i], ":", sep = ""), unlist(attributes_df$options[i]), multiple=TRUE)
+            selectInput(paste(attributes_df$encoded_attribute[i]), paste(attributes_df$attribute[i], ":", sep = ""), options, multiple=TRUE)
           )
         } else {
-          min = min(as.numeric(unlist(attributes_df$options[i])), na.rm = TRUE)
-          max = max(as.numeric(unlist(attributes_df$options[i])), na.rm = TRUE)
+          min <- min(as.numeric(unlist(df[[paste(attributes_df$attribute[i])]])), na.rm = TRUE)
+          max <- max(as.numeric(unlist(df[[paste(attributes_df$attribute[i])]])), na.rm = TRUE)
           tagList(
             sliderInput(paste(attributes_df$encoded_attribute[i]), paste(attributes_df$attribute[i], ":", sep = ""), min = min, max = max, value = c(min, max))
           )
@@ -803,9 +804,29 @@ server <- function(input, output, session) {
     # Add word boundaries ("\\b") and insert the "OR" operator ("|") between inputs. This stops the input "Barley" from matching "Barleyandhairyvetch".
     pattern <- paste("\\b", pattern, "\\b", collapse = "|", sep = "")
     pattern <- paste(pattern, collapse = "|", sep = "")
-    #x <- gsub("[^[:alnum:]]", "", variable)
-    x <- lapply(variable, function(x) gsub("[^[:alnum:]]", "", x)) 
+    # Delete non-alphanumeric characters from the data (e.g., replace "Barley and hairy vetch" with "Barleyandhairyvetch").
+    x <- lapply(variable, function(x) gsub("[^[:alnum:]]", "", x))
+    # Return a list of rows where the pattern is matched.
     return(list(pattern = pattern, x = x))
+  }
+  
+  
+  
+  
+  # After filtering the data, update the filters (remove choices that are not in the data).
+  update_filters <- function(df) {
+    for (i in 1:length(attributes_df$attribute)) {
+      if(attributes_df$type[i] == "factor") {
+        selected <- input[[paste(attributes_df$encoded_attribute[i])]]
+        choices <- sort(unique(unlist(df[[paste(attributes_df$attribute[i])]])))
+        updateSelectInput(session, paste(attributes_df$encoded_attribute[i]), selected = selected, choices = choices)
+      } else {
+        #selected_min <- min(as.numeric(unlist(df[[paste(attributes_df$attribute[i])]])), na.rm = TRUE)
+        #selected_max <- max(as.numeric(unlist(df[[paste(attributes_df$attribute[i])]])), na.rm = TRUE)
+        #value <- c(selected_min, selected_max)
+        #updateSliderInput(session, paste(attributes_df$encoded_attribute[i]), value = value)
+      }
+    }
   }
   
   
@@ -821,18 +842,19 @@ server <- function(input, output, session) {
           filter <- get_filter(input[[paste(attributes_df$encoded_attribute[i])]], df[[paste(attributes_df$attribute[i])]])
           df <- subset(df, grepl(filter$pattern, filter$x))
         } else {  # attributes_df$type[i] == "number"
-          min = min(as.numeric(unlist(attributes_df$options[i])), na.rm = TRUE)
-          max = max(as.numeric(unlist(attributes_df$options[i])), na.rm = TRUE)
-          input_min <- input[[paste(attributes_df$encoded_attribute[i])]][1]
-          input_max <- input[[paste(attributes_df$encoded_attribute[i])]][2]
-          if (input_min != min | input_max != max) {
+          min <- min(as.numeric(unlist(attributes_df$options[i])), na.rm = TRUE)
+          max <- max(as.numeric(unlist(attributes_df$options[i])), na.rm = TRUE)
+          selected_min <- input[[paste(attributes_df$encoded_attribute[i])]][1]
+          selected_max <- input[[paste(attributes_df$encoded_attribute[i])]][2]
+          if (selected_min != min | selected_max != max) {
             df <- df[!is.na(df[[paste(attributes_df$attribute[i])]]), ]
-            df <- df[as.numeric(df[[paste(attributes_df$attribute[i])]]) >= input_min, ]
-            df <- df[as.numeric(df[[paste(attributes_df$attribute[i])]]) <= input_max, ]
+            df <- df[as.numeric(df[[paste(attributes_df$attribute[i])]]) >= selected_min, ]
+            df <- df[as.numeric(df[[paste(attributes_df$attribute[i])]]) <= selected_max, ]
           }
         }
       }
     }
+    update_filters(df)
     return(df)
   })
   
@@ -1276,6 +1298,9 @@ server <- function(input, output, session) {
   output$debug2 <- renderUI("")
   output$debug3 <- renderUI("")
 
+  #output$debug1 <- renderPrint(digest(api_query_string))     # Hash for data folder on S3
+  #output$debug2 <- renderPrint(digest(settings()))  # Hash for results and settings on S3
+  
   #output$debug1 <- renderPrint(df$Country)
   #inp <- lapply(df$Country, function(x) gsub("[^[:alnum:]]", "", x)) 
   #output$debug2 <- renderPrint(inp)
@@ -1283,8 +1308,6 @@ server <- function(input, output, session) {
   #pat <- paste("\\b", pat, "\\b", collapse = "|", sep = "")
   #output$debug3 <- renderPrint(grepl(pat, inp))
   
-  #output$debug1 <- renderPrint(digest(api_query_string))     # Hash for data folder on S3
-  #output$debug2 <- renderPrint(digest(settings()))  # Hash for results and settings on S3
   #output$debug1 <- renderPrint(attributes_df[3])  # Encoded attributes
   #output$debug1 <- renderPrint(get_filter(input[[paste(attributes_df$attribute[4])]], df[[paste(attributes_df$attribute[4])]]))
   #output$debug1 <- renderPrint(bookmarked_settings)
