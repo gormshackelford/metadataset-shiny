@@ -67,7 +67,7 @@ ui <- function(request) { fluidPage(
             value = TRUE
           ),
           HTML('<br />'),
-          h1('Studies within publications'),
+          h1('Random effects'),
           HTML('<br />'),
           uiOutput('column_names'),
           HTML('Rows with different values in the selected column(s) will be treated as independent
@@ -112,7 +112,10 @@ ui <- function(request) { fluidPage(
     tabPanel("Data",
       mainPanel(
         HTML('<br />'),
-        withSpinner(DT::dataTableOutput('data_table'))
+        h1('Data'),
+        HTML('<br />'),
+        HTML('<br />'),
+        DT::dataTableOutput('data_table')
       )
     ),
     tabPanel("Forest plot",
@@ -154,12 +157,14 @@ ui <- function(request) { fluidPage(
         uiOutput('outcome_filters')
         )
       ),
-    tabPanel("Study summaries",
+    tabPanel("Study summaries and weights",
       mainPanel(
         HTML('<br />'),
-        h1('Work in progress'),
+        h1('Study summaries'),
         HTML('<br />'),
-        uiOutput('summaries')
+        HTML('<table>'),
+        uiOutput('summaries'),
+        HTML('</table>')
       )
     )
     )
@@ -501,7 +506,9 @@ server <- function(input, output, session) {
       df$citation[df$citation == ""] <- "[AUTHOR], [YEAR]"            # The format from Metadataset if both author and year are NA
       df$citation[df$citation == "[AUTHOR], [YEAR]"] <- "[CITATION]"  # Convert to this new format.
       citations <- unique(df$citation)
-      for (i in 1:length(citations)) {
+      n_citations <- length(citations)
+      # Differentiate publications with the same citation (append "a", "b", etc.).
+      for (i in 1:n_citations) {
         this_citation <- citations[i]
         df_for_this_citation <- subset(df, citation == citations[i], select = c("publication", "citation"))
         publications_with_this_citation <- unique(df_for_this_citation$publication)
@@ -513,6 +520,20 @@ server <- function(input, output, session) {
         }
       }
       df <- df[order(df$citation),]
+      # Differentiate interventions within the same publication (append "[Study 1]", "[Study 2]", etc.).
+      citations <- unique(df$citation)
+      n_citations <- length(citations)
+      for (i in 1:n_citations) {
+        this_citation <- citations[i]
+        df_for_this_citation <- subset(df, citation == citations[i], select = c("Methods", "citation"))
+        studies <- unique(unlist(df_for_this_citation$Methods))
+        if (length(studies) > 1) {
+          for (j in 1:length(studies)) {
+            this_study <- studies[j]
+            df$citation[df$citation == this_citation & df$Methods == this_study] <- paste(this_citation, " [Study ", j, "]", sep = "")
+          }
+        }
+      }
       row.names(df) <- NULL
       
       # SD from SE
@@ -651,7 +672,7 @@ server <- function(input, output, session) {
   
   # Use bookmarked settings, if they exist
   if (bookmark != "") {
-    bookmarked_settings <- paste(cache, "settings_", bookmark, ".rds", sep = "")
+    bookmarked_settings <- paste("bookmarks_for_", cache, "settings_", bookmark, ".rds", sep = "")
     bookmarked_settings <- s3readRDS(bookmarked_settings, s3_bucket, check_region=FALSE)
     updateSelectInput(session, "column_names", selected = bookmarked_settings[["column_names"]])
     updateSliderInput(session, "significant_p", value = bookmarked_settings[["significant_p"]])
@@ -788,6 +809,21 @@ server <- function(input, output, session) {
       }
     }
     
+    # Weighted variance
+    citations <- unique(df$citation)
+    n_citations <- length(citations)
+    encoded_citations <- gsub("[^[:alnum:]_]", "", citations)  # Delete non-alphanumeric characters (except underscores)
+    for (i in 1:n_citations) {
+      encoded_citation <- encoded_citations[i]
+      if (encoded_citation %in% names(settings())) {
+        weight <- input[[encoded_citation]]
+      } else {
+        weight <- 1
+      }
+      df$weight[df$citation == citations[i]] <- weight
+    }
+    df$weighted_v <- df$selected_v * (1 / df$weight)
+
     return(df)
     
   })  # End of get_df
@@ -854,6 +890,18 @@ server <- function(input, output, session) {
         }
       }
     }
+    output$data_table <- DT::renderDataTable(withProgress(message="Please wait...", value=0.5, 
+      expr = { DT::datatable(
+        df,
+        extensions = 'Buttons',
+        options = list(
+          dom = 'Bfrtip', 
+          buttons = c('copy', 'csv'),
+          pageLength = 100
+        )
+      )}),
+      server = TRUE
+    )
     update_filters(df)
     return(df)
   })
@@ -869,6 +917,7 @@ server <- function(input, output, session) {
       d <- subset(data, es_and_v == TRUE)
       n_rows <- length(d$es_and_v)
       n_publications <- length(unique(d$publication))
+      n_citations <- length(unique(d$citation))
       use_cached_data <- rv[["use_cached_data"]]
       cached_results <- paste(cache, "results_", digest(settings()), ".rds", sep = "")
       if (use_cached_data == TRUE & head_object(cached_results, s3_bucket, check_region=FALSE)) {
@@ -876,7 +925,7 @@ server <- function(input, output, session) {
       } else {
         if (n_rows > 0) {
           if (n_rows > 1) {
-            model <- rma.mv(yi = log_response_ratio, V = selected_v, random = ~ 1 | publication/study, data = d)
+            model <- rma.mv(yi = log_response_ratio, V = weighted_v, random = ~ 1 | publication/study, data = d)
             log_response_ratio <- model$b
             log_response_ratio_se <- model$se
             effect_size <- as.numeric(round(exp(model$b), 2))  # Effect size = response ratio
@@ -888,13 +937,13 @@ server <- function(input, output, session) {
             if (QEp == 0) QEp <- 0.0001
           } else if (n_rows == 1) {
             log_response_ratio <- d$log_response_ratio[1]
-            log_response_ratio_se <- sqrt(d$selected_v[1])
+            log_response_ratio_se <- sqrt(d$weighted_v[1])
             effect_size <- as.numeric(round(exp(log_response_ratio)), 2)  # Effect size = response ratio
-            ci.lb <- exp(d$log_response_ratio[1] - (1.96 * sqrt(d$selected_v[1])))
+            ci.lb <- exp(d$log_response_ratio[1] - (1.96 * sqrt(d$weighted_v[1])))
             ci.lb <- round(ci.lb, 2) 
-            ci.ub <- exp(d$log_response_ratio[1] + (1.96 * sqrt(d$selected_v[1])))
+            ci.ub <- exp(d$log_response_ratio[1] + (1.96 * sqrt(d$weighted_v[1])))
             ci.ub <- round(ci.ub, 2)
-            zval <- abs(d$log_response_ratio[1] / sqrt(d$selected_v[i]))
+            zval <- abs(d$log_response_ratio[1] / sqrt(d$weighted_v[i]))
             pval <- 2 * (1 - pnorm(zval))
             QE <- NA
             QEp <- NA
@@ -937,13 +986,13 @@ server <- function(input, output, session) {
             results_df <- data.frame(
               citation = d$citation,
               effect_size = exp(d$log_response_ratio[1]),  # Effect size = response ratio
-              ci.lb = exp(d$log_response_ratio[1] - (1.96 * sqrt(d$selected_v[1]))),
-              ci.ub = exp(d$log_response_ratio[1] + (1.96 * sqrt(d$selected_v[1]))),
+              ci.lb = exp(d$log_response_ratio[1] - (1.96 * sqrt(d$weighted_v[1]))),
+              ci.ub = exp(d$log_response_ratio[1] + (1.96 * sqrt(d$weighted_v[1]))),
               response_ratio = d$log_response_ratio[1],
-              log_response_ratio_se = sqrt(d$selected_v[1])  # Standard error of the log response ratio (not the response ratio) for the funnel plot
+              log_response_ratio_se = sqrt(d$weighted_v[1])  # Standard error of the log response ratio (not the response ratio) for the funnel plot
             )
           }
-          results <- list(effect_size = effect_size, ci.lb = ci.lb, ci.ub = ci.ub, pval = pval, QE = QE, QEp = QEp, direction = direction, percent = percent, lower_percent = lower_percent, upper_percent = upper_percent, log_response_ratio = log_response_ratio, log_response_ratio_se = log_response_ratio_se, results_df = results_df, d = d, n_publications = n_publications, n_rows = n_rows)
+          results <- list(effect_size = effect_size, ci.lb = ci.lb, ci.ub = ci.ub, pval = pval, QE = QE, QEp = QEp, direction = direction, percent = percent, lower_percent = lower_percent, upper_percent = upper_percent, log_response_ratio = log_response_ratio, log_response_ratio_se = log_response_ratio_se, results_df = results_df, d = d, n_publications = n_publications, n_citations = n_citations, n_rows = n_rows)
           s3saveRDS(results, object = cached_results, s3_bucket, check_region=FALSE)
           rv[["use_cached_data"]] <- TRUE
         } else {  # if (n_rows == 0)
@@ -957,167 +1006,138 @@ server <- function(input, output, session) {
   
   
   
-  get_results_by_publication <- reactive({
+  get_results_by_study <- reactive({
     results <- get_results()
     if (!is.na(results)) {
       d <- results$d
-      n_publications <- results$n_publications
-      publications <- unique(d$publication)
-      results_by_publication_df <- data.frame(matrix(nrow = 0, ncol = 6))
-      colnames(results_by_publication_df) <- c("citation", "effect_size", "ci.lb", "ci.ub", "log_response_ratio", "log_response_ratio_se")
-      all_paragraphs <- "<hr /><br />"
-      for (i in 1:n_publications) {
-        di <- subset(d, publication == publications[i])
-        methods <- unique(unlist(di$Methods))
-        n_studies <- length(methods)
-        for (j in 1:n_studies) {
-          dij <- subset(di, Methods == methods[j] & es_and_v == TRUE)
-          n_rows <- length(dij$es_and_v)
-          if (n_rows > 0) {
-            study_df <- data.frame(matrix(nrow = 1, ncol = 6))
-            colnames(study_df) <- c("citation", "effect_size", "ci.lb", "ci.ub", "log_response_ratio", "log_response_ratio_se")
-            citation <- unique(dij$citation)
-            if (n_studies > 1) {
-              citation <- paste(citation, " [Study ", j, "]", sep = "")
-            }
-            study_df$citation[1] <- citation
-            
-            get_countries <- function() {
-              if (length(countries) > 1) {
-                countries <- sort(countries)
-                result <- "multiple countries ("
-                for (i in 1:length(countries)) {
-                  if (i == 1) {
-                    result = paste(result, countries[i], sep = "")
-                  } else if (i == length(countries)) {
-                    result = paste(result, countries[i], sep = " and ")
-                    result = paste(result, ")", sep = "")
-                  } else {
-                    result = paste(result, countries[i], sep = ", ")
-                  }
-                }
-              } else {
-                plural_countries <- c("Gambia", "Netherlands", "United Kingdom of Great Britain and Northern Ireland", "United States of America")
-                if (countries[1] %in% plural_countries) {
-                  result = paste("the", countries[1], sep = " ")
+      n_citations <- results$n_citations
+      citations <- unique(d$citation)
+      results_by_study_df <- data.frame(matrix(nrow = n_citations, ncol = 8))
+      colnames(results_by_study_df) <- c("citation", "effect_size", "ci.lb", "ci.ub", "log_response_ratio", "log_response_ratio_se", "weight", "paragraph")
+      for (i in 1:n_citations) {
+        this_citation <- citations[i]
+        di <- subset(d, citation == this_citation)
+        n_rows <- length(di$es_and_v)
+        if (n_rows > 0) {
+          results_by_study_df$citation[i] <- this_citation
+          results_by_study_df$weight[i] <- mean(di$weight)
+          
+          get_countries <- function() {
+            if (length(countries) > 1) {
+              countries <- sort(countries)
+              result <- "multiple countries ("
+              for (i in 1:length(countries)) {
+                if (i == 1) {
+                  result = paste(result, countries[i], sep = "")
+                } else if (i == length(countries)) {
+                  result = paste(result, countries[i], sep = " and ")
+                  result = paste(result, ")", sep = "")
                 } else {
-                  result = countries[1]
+                  result = paste(result, countries[i], sep = ", ")
                 }
               }
-              return(result)
-            }
-            countries <- unique(unlist(dij$Country))
-            country <- if(!is.null(countries)) { get_countries() }
-            
-            get_designs <- function() {
-              if (length(designs) > 1) {
-                for (i in 1:length(designs)) {
-                  if (i == 1) {
-                    result = designs[i]
-                  } else {
-                    result = paste(result, designs[i], sep = ", ")
-                  }
-                }
+            } else {
+              plural_countries <- c("Gambia", "Netherlands", "United Kingdom of Great Britain and Northern Ireland", "United States of America")
+              if (countries[1] %in% plural_countries) {
+                result = paste("the", countries[1], sep = " ")
               } else {
-                result = designs[1]
+                result = countries[1]
               }
-              return(tolower(result))
             }
-            designs <- unique(unlist(dij$Design))
-            design <- if(!is.null(designs)) { get_designs() }
-            
-            location <- unique(dij$Location)
-            methods_text <- methods[j]
-            if (n_rows > 1) {
-              model <- rma.mv(yi = log_response_ratio, V = selected_v, random = ~ 1 | study, data = dij)
-              effect_size <- as.numeric(round(exp(model$b), 2))  # Response ratio
-              ci.lb <- round(exp(model$ci.lb), 2)                # Lower bound of the confidence interval
-              ci.ub <- round(exp(model$ci.ub), 2)                # Upper bound of the confidence interval
-              log_response_ratio <- round(model$b, 2)            # The log response ratio (not the response ratio) for the funnel plot
-              log_response_ratio_se <- round(model$se, 2)        # Standard error of the log response ratio (not the response ratio) for the funnel plot
-            } else if (n_rows == 1) {
-              effect_size <- as.numeric(round(exp(dij$log_response_ratio[1]), 2))
-              ci.lb <- round(exp(dij$log_response_ratio[1] - (1.96 * sqrt(dij$selected_v[1]))), 2)
-              ci.ub <- round(exp(dij$log_response_ratio[1] + (1.96 * sqrt(dij$selected_v[1]))), 2)
-              log_response_ratio <- round(dij$log_response_ratio[1], 2)
-              log_response_ratio_se <- round(sqrt(dij$selected_v[1]), 2)
-            }
-            study_df$effect_size[1] <- effect_size
-            study_df$ci.lb[1] <- ci.lb
-            study_df$ci.ub[1] <- ci.ub
-            study_df$log_response_ratio[1] <- log_response_ratio
-            study_df$log_response_ratio_se[1] <- log_response_ratio_se
-            results_by_publication_df <- rbind(results_by_publication_df, study_df)
-            if (effect_size > 1) {
-              direction <- "positive"
-              percent <- paste(round(abs(1 - effect_size) * 100), "% higher", sep = "")
-            } else if (effect_size < 1) {
-              direction <- "negative"
-              percent <- paste(round(abs(1 - effect_size) * 100), "% lower", sep = "")
-            } else {
-              direction <- "neutral"
-              percent <- "0% different"
-            }
-            if (ci.lb < 1) {
-              lower_percent <- paste(round(abs(1 - ci.lb) * 100), "% lower", sep ="")
-            } else if (ci.lb > 1) {
-              lower_percent <- paste(round(abs(1 - ci.lb) * 100), "% higher", sep ="")
-            } else {
-              lower_percent <- "0% different"
-            }
-            if (ci.ub < 1) {
-              upper_percent <- paste(round(abs(1 - ci.ub) * 100), "% lower", sep ="")
-            } else if (ci.ub > 1) {
-              upper_percent <- paste(round(abs(1 - ci.ub) * 100), "% higher", sep ="")
-            } else {
-              upper_percent <- "0% different"
-            }
-            this_paragraph_header <- paste(
-              "<span class='bold'>", citation, "</span><br /><br />",
-              "Intervention: <span class='italic'>", dij$intervention[1], "</span><br /><br />",
-              "Outcome: <span class='italic'>", dij$outcome[1], "</span><br /><br />",
-              sep = ""
-            )
-            this_paragraph <- paste(
-              "Based on <span class='bold'>", n_rows, " data point", if (n_rows > 1) "s", "</span> from a ", 
-              if(!is.null(design)) paste("<span class='bold'>", design, "</span>", sep = ""), " study ", 
-              if (!is.na(location)) location else if(!is.null(country)) paste("in <span 
-              class='bold'>", country, "</span>"), " (", if (citation != "") citation else 
-              "[CITATION NA]", ") this outcome was <span class='bold'>", percent, "</span> with 
-              this intervention than it was without this intervention (between ",lower_percent, " 
-              and ", upper_percent, ", based on the 95% confidence interval). <span class='bold'> 
-              Methods: </span>", if (methods_text != "") methods_text else paste("[METHODS NA]"), 
-              sep = ""
-            )
-            all_paragraphs <- c(all_paragraphs, this_paragraph_header, this_paragraph, "<br /><br /><hr /><br />")
+            return(result)
           }
+          countries <- unique(unlist(di$Country))
+          country <- if(!is.null(countries)) { get_countries() }
+          
+          get_designs <- function() {
+            if (length(designs) > 1) {
+              for (i in 1:length(designs)) {
+                if (i == 1) {
+                  result = designs[i]
+                } else {
+                  result = paste(result, designs[i], sep = ", ")
+                }
+              }
+            } else {
+              result = designs[1]
+            }
+            return(tolower(result))
+          }
+          designs <- unique(unlist(di$Design))
+          design <- if(!is.null(designs)) { get_designs() }
+          
+          location <- unique(di$Location)
+          methods_text <- unique(unlist(di$Methods))
+          if (n_rows > 1) {
+            model <- rma.mv(yi = log_response_ratio, V = weighted_v, random = ~ 1 | study, data = di)
+            effect_size <- as.numeric(round(exp(model$b), 2))  # Response ratio
+            ci.lb <- round(exp(model$ci.lb), 2)                # Lower bound of the confidence interval
+            ci.ub <- round(exp(model$ci.ub), 2)                # Upper bound of the confidence interval
+            log_response_ratio <- round(model$b, 2)            # The log response ratio (not the response ratio) for the funnel plot
+            log_response_ratio_se <- round(model$se, 2)        # Standard error of the log response ratio (not the response ratio) for the funnel plot
+          } else if (n_rows == 1) {
+            effect_size <- as.numeric(round(exp(di$log_response_ratio[1]), 2))
+            ci.lb <- round(exp(di$log_response_ratio[1] - (1.96 * sqrt(di$weighted_v[1]))), 2)
+            ci.ub <- round(exp(di$log_response_ratio[1] + (1.96 * sqrt(di$weighted_v[1]))), 2)
+            log_response_ratio <- round(di$log_response_ratio[1], 2)
+            log_response_ratio_se <- round(sqrt(di$weighted_v[1]), 2)
+          }
+          results_by_study_df$effect_size[i] <- effect_size
+          results_by_study_df$ci.lb[i] <- ci.lb
+          results_by_study_df$ci.ub[i] <- ci.ub
+          results_by_study_df$log_response_ratio[i] <- log_response_ratio
+          results_by_study_df$log_response_ratio_se[i] <- log_response_ratio_se
+          if (effect_size > 1) {
+            direction <- "positive"
+            percent <- paste(round(abs(1 - effect_size) * 100), "% higher", sep = "")
+          } else if (effect_size < 1) {
+            direction <- "negative"
+            percent <- paste(round(abs(1 - effect_size) * 100), "% lower", sep = "")
+          } else {
+            direction <- "neutral"
+            percent <- "0% different"
+          }
+          if (ci.lb < 1) {
+            lower_percent <- paste(round(abs(1 - ci.lb) * 100), "% lower", sep ="")
+          } else if (ci.lb > 1) {
+            lower_percent <- paste(round(abs(1 - ci.lb) * 100), "% higher", sep ="")
+          } else {
+            lower_percent <- "0% different"
+          }
+          if (ci.ub < 1) {
+            upper_percent <- paste(round(abs(1 - ci.ub) * 100), "% lower", sep ="")
+          } else if (ci.ub > 1) {
+            upper_percent <- paste(round(abs(1 - ci.ub) * 100), "% higher", sep ="")
+          } else {
+            upper_percent <- "0% different"
+          }
+          this_paragraph_header <- paste(
+            "<span class='bold'>", this_citation, "</span><br /><br />",
+            "Intervention: <span class='italic'>", di$intervention[1], "</span><br /><br />",
+            "Outcome: <span class='italic'>", di$outcome[1], "</span><br /><br />",
+            sep = ""
+          )
+          this_paragraph <- paste(
+            "Based on <span class='bold'>", n_rows, " data point", if (n_rows > 1) "s", "</span> from a ", 
+            if(!is.null(design)) paste("<span class='bold'>", design, "</span>", sep = ""), " study ", 
+            if (!is.na(location)) location else if(!is.null(country)) paste("in <span 
+            class='bold'>", country, "</span>"), " (", if (this_citation != "") this_citation else 
+            "[CITATION NA]", ") this outcome was <span class='bold'>", percent, "</span> with 
+            this intervention than it was without this intervention (between ",lower_percent, " 
+            and ", upper_percent, ", based on the 95% confidence interval). <span class='bold'> 
+            Methods: </span>", if (methods_text != "") methods_text else paste("[METHODS NA]"), 
+            sep = ""
+          )
+          this_paragraph <- paste(this_paragraph_header, this_paragraph, "<br /><br /><hr /><br />", sep = "")
+          results_by_study_df$paragraph[i] <- this_paragraph
         }
       }
-      results <- list(
-        all_text = HTML(paste(all_paragraphs)),
-        results_by_publication_df = results_by_publication_df
-      )
+      results_by_study_df$encoded_citation <- gsub("[^[:alnum:]_]", "", results_by_study_df$citation)  # Delete non-alphanumeric characters (except underscores)
+      return(results_by_study_df)
     } else {  # if (is.na(results))
-      results <- NA
+      return(NA)
     }
-    return(results)
   })
-  
-  
-  
-  
-  output$data_table <- DT::renderDataTable(withProgress(message="Please wait...", value=0.5, 
-    expr = { DT::datatable(
-      get_data(), 
-      extensions = 'Buttons',
-      options = list(
-        dom = 'Bfrtip', 
-        buttons = c('copy', 'csv'),
-        pageLength = 100
-      )
-    )}),
-    server = TRUE
-  )
   
   
   
@@ -1126,6 +1146,7 @@ server <- function(input, output, session) {
     results <- get_results()
     if (!is.na(results)) {
       n_rows <- results$n_rows
+      n_citations <- results$n_citations
       n_publications <- results$n_publications
       effect_size <- results$effect_size
       ci.lb <- results$ci.lb
@@ -1151,8 +1172,10 @@ server <- function(input, output, session) {
         ci.lb, " &#8804; response ratio &#8804; ", ci.ub, ").
         <br />
         <br /> 
-        This analysis included <span class='red'>", n_rows, " data points from ", n_publications, 
-        " publications</span> (please see the &quot;Data&quot; tab). ", if (n_rows > 1) { 
+        This analysis included <span class='red'>", n_rows, " data points from ", n_citations, 
+        " studies in ", n_publications, " publications</span> (please see the &quot;Data&quot; 
+        tab). ", 
+        if (n_rows > 1) { 
           paste(
             "There was ", if (QEp >= 0.05) "not ", "significant heterogeneity between these data 
             points (Q = ", QE, ", P = ", format(QEp), ").", sep = ""
@@ -1189,8 +1212,8 @@ server <- function(input, output, session) {
   
   output$forest_plot <- renderPlot({
     results <- get_results()
-    results_by_publication <- get_results_by_publication()
-    if (!is.na(results) & !is.na(results_by_publication)) {
+    results_by_study <- get_results_by_study()
+    if (!is.na(results) & !is.na(results_by_study)) {
       results_df <- data.frame(
         citation = "Mean effect size",
         effect_size = results$effect_size,
@@ -1198,18 +1221,21 @@ server <- function(input, output, session) {
         ci.ub = results$ci.ub,
         log_response_ratio = results$log_response_ratio,
         log_response_ratio_se = results$log_response_ratio_se,
+        weight = "",
+        paragraph = "",
+        encoded_citation = "",
         shape = 18,  # Diamond
         size = 24
       )
-      results_by_publication_df <- results_by_publication$results_by_publication_df
-      results_by_publication_df$shape <- 16  # Circle
-      results_by_publication_df$size <- 8
-      results_by_publication_df <- rbind(results_by_publication_df, results_df)
-      results_by_publication_df$citation <- reorder(results_by_publication_df$citation, c(length(results_by_publication_df$citation):1))
-      n_rows <- length(results_by_publication_df$effect_size)
+      results_by_study_df <- results_by_study
+      results_by_study_df$shape <- 16  # Circle
+      results_by_study_df$size <- 8
+      results_by_study_df <- rbind(results_by_study_df, results_df)
+      results_by_study_df$citation <- reorder(results_by_study_df$citation, c(length(results_by_study_df$citation):1))
+      n_rows <- length(results_by_study_df$effect_size)
       rv[["n_rows"]] <- n_rows  # For get_height()
-      p <- ggplot(data=results_by_publication_df, aes(x=citation, y=effect_size, ymin=ci.lb, ymax=ci.ub)) +
-        geom_pointrange(shape=results_by_publication_df$shape, fatten=results_by_publication_df$size) + 
+      p <- ggplot(data=results_by_study_df, aes(x=citation, y=effect_size, ymin=ci.lb, ymax=ci.ub)) +
+        geom_pointrange(shape=results_by_study_df$shape, fatten=results_by_study_df$size) + 
         geom_hline(yintercept=1, lty=2) +
         coord_flip() +
         xlab("Study") + ylab("Response ratio") +
@@ -1251,13 +1277,19 @@ server <- function(input, output, session) {
   
   
   output$summaries <- renderUI({
-    results_by_publication <- get_results_by_publication()
-    if (!is.na(results_by_publication)) {
-      all_text <- results_by_publication$all_text
-    } else {
-      all_text <- ""
+    results_by_study <- get_results_by_study()
+    if (!is.na(results_by_study)) {
+      df <- results_by_study
+      lapply(1:length(df$paragraph), function(i) {
+        tagList(
+          HTML("<tr><td>"),
+          HTML(paste(df$paragraph[i])),
+          HTML("</td><td class='padding-left'>"),
+          sliderInput(paste(df$encoded_citation[i]), "Weight for this study", value = df$weight[i], min = 0.01, max = 1, step = 0.01),
+          HTML("</td></tr>")
+        )
+      })
     }
-    HTML(paste(all_text))
   })
   outputOptions(output, "summaries", suspendWhenHidden = FALSE)
 
@@ -1279,7 +1311,7 @@ server <- function(input, output, session) {
   
   
   observeEvent(input$make_bookmark, {
-    bookmark_object <- paste(cache, "settings_", digest(settings()), ".rds", sep = "")
+    bookmark_object <- paste("bookmarks_for_", cache, "settings_", digest(settings()), ".rds", sep = "")
     s3saveRDS(settings(), object = bookmark_object, s3_bucket, check_region=FALSE)
     rv[["bookmark_url"]] <- paste(protocol, "//", hostname, if (port != "") ":", port, pathname, "?bookmark=", digest(settings()), "&", api_query_string, sep="")
     output$bookmark_link <- renderUI(HTML(paste(

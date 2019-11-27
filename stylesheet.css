@@ -11,6 +11,10 @@ h1 {
   font-size: 3rem;
 }
 
+td.padding-left {
+  padding-left: 3em;
+}
+
 span.bold {
   font-weight: bold;
 }
