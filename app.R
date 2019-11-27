@@ -239,10 +239,11 @@ server <- function(input, output, session) {
     #outcome = 348  # Plants (weeds and invasive species)
     
     # Uncomment the following for testing the data on Giant hogweed.
-    #subject = 10
-    #intervention = 774  # Herbicides
-    #intervention = 782  # Cutting/chopping
-    
+    #subject = "10"
+    #intervention = "774"  # Herbicides
+    #intervention = "782"  # Cutting/chopping
+    #publication = "26083"
+
     # Uncomment one of the following outcomes for testing the data on cover crops.
     #outcome <- "4"  # Crop yield
     #outcome <- "20"  # Soil
@@ -255,8 +256,7 @@ server <- function(input, output, session) {
     #outcome <- "166"  # Crop damage
     #outcome <- "455"  # Weed abundance
     #outcome <- "456"  # Weed diversity
-    #publication = "22270"
-    
+
     # Connect to AWS S3 using credentials for the user, "metadataset-shiny".
     s3_credentials <- config::get("s3")
     Sys.setenv(
@@ -796,15 +796,17 @@ server <- function(input, output, session) {
     # Imputed variance
     if (input[["impute_v"]]) {
       df_with_v <- df[!is.na(df$selected_v), ]
-      imputation <- lme(selected_v ~ 1, data = df_with_v, random = ~ 1 | publication/study)
-      imputed_v <- imputation$fitted[1]
-      df$selected_v[is.na(df$selected_v)] <- imputed_v
-      df$es_and_v <- !is.na(df$log_response_ratio) & !is.na(df$selected_v)
-      if (input[["v_outliers"]]) {
-        selected_v_mad <- mad(df$selected_v, na.rm=TRUE)
-        if (selected_v_mad > 0) {
-          df$selected_v_mads <- (abs(df$selected_v - median(df$selected_v, na.rm=TRUE))) / selected_v_mad
-          df$es_and_v[df$selected_v_mads > input$v_outliers_threshold] <- FALSE  # Here we define outliers as being more than [[input]] deviations from the median
+      if(length(df_with_v$selected_v) > 1) {
+        imputation <- lme(selected_v ~ 1, data = df_with_v, random = ~ 1 | publication/study)
+        imputed_v <- imputation$fitted[1]
+        df$selected_v[is.na(df$selected_v)] <- imputed_v
+        df$es_and_v <- !is.na(df$log_response_ratio) & !is.na(df$selected_v)
+        if (input[["v_outliers"]]) {
+          selected_v_mad <- mad(df$selected_v, na.rm=TRUE)
+          if (selected_v_mad > 0) {
+            df$selected_v_mads <- (abs(df$selected_v - median(df$selected_v, na.rm=TRUE))) / selected_v_mad
+            df$es_and_v[df$selected_v_mads > input$v_outliers_threshold] <- FALSE  # Here we define outliers as being more than [[input]] deviations from the median
+          }
         }
       }
     }
