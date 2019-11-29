@@ -498,13 +498,13 @@ server <- function(input, output, session) {
       }  # End of if (!is.null(attributes))
       
       # Dataset for display
-      df <- df[c("citation", "publication", "intervention", "population", "outcome", "comparison", "study_id", "study_name", "note", "treatment_mean", "treatment_sd", "treatment_n", "treatment_se", "control_mean", "control_sd", "control_n", "control_se", "n", "unit", "lsd", "is_significant", "approximate_p_value", "p_value", "z_value", "correlation_coefficient", "effect_size", "effect_size_unit", "other_effect_size_unit", "lower_limit", "upper_limit", "confidence", "se", "variance", "Methods", "Location", "Country", "Design")]
+      df <- df[c("citation", "publication", "intervention", "population", "outcome", "comparison", "study_id", "study_name", "note", "treatment_mean", "treatment_sd", "treatment_n", "treatment_se", "control_mean", "control_sd", "control_n", "control_se", "treatment_mean_before", "treatment_sd_before", "treatment_n_before", "treatment_se_before", "control_mean_before", "control_sd_before", "control_n_before", "control_se_before", "n", "unit", "lsd", "is_significant", "approximate_p_value", "p_value", "z_value", "correlation_coefficient", "effect_size", "effect_size_unit", "other_effect_size_unit", "lower_limit", "upper_limit", "confidence", "se", "variance", "Methods", "Location", "Country", "Design")]
       if (!is.null(attributes)) {
         df <- cbind(df, EAV_df)
       }
       publications_n <- length(unique(df$publication))
       df$citation[df$citation == ""] <- "[AUTHOR], [YEAR]"            # The format from Metadataset if both author and year are NA
-      df$citation[df$citation == "[AUTHOR], [YEAR]"] <- "[CITATION]"  # Convert to this new format.
+      df$citation[df$citation == "[AUTHOR], [YEAR]"] <- "[CITATION NA]"  # Convert to this new format.
       citations <- unique(df$citation)
       n_citations <- length(citations)
       # Differentiate publications with the same citation (append "a", "b", etc.).
@@ -940,9 +940,9 @@ server <- function(input, output, session) {
           } else if (n_rows == 1) {
             log_response_ratio <- d$log_response_ratio[1]
             log_response_ratio_se <- sqrt(d$weighted_v[1])
-            effect_size <- as.numeric(round(exp(log_response_ratio)), 2)  # Effect size = response ratio
+            effect_size <- as.numeric(round(exp(d$log_response_ratio[1]), 2))  # Effect size = response ratio
             ci.lb <- exp(d$log_response_ratio[1] - (1.96 * sqrt(d$weighted_v[1])))
-            ci.lb <- round(ci.lb, 2) 
+            ci.lb <- round(ci.lb, 2)
             ci.ub <- exp(d$log_response_ratio[1] + (1.96 * sqrt(d$weighted_v[1])))
             ci.ub <- round(ci.ub, 2)
             zval <- abs(d$log_response_ratio[1] / sqrt(d$weighted_v[i]))
@@ -990,7 +990,7 @@ server <- function(input, output, session) {
               effect_size = exp(d$log_response_ratio[1]),  # Effect size = response ratio
               ci.lb = exp(d$log_response_ratio[1] - (1.96 * sqrt(d$weighted_v[1]))),
               ci.ub = exp(d$log_response_ratio[1] + (1.96 * sqrt(d$weighted_v[1]))),
-              response_ratio = d$log_response_ratio[1],
+              log_response_ratio = d$log_response_ratio[1],
               log_response_ratio_se = sqrt(d$weighted_v[1])  # Standard error of the log response ratio (not the response ratio) for the funnel plot
             )
           }
@@ -1120,14 +1120,15 @@ server <- function(input, output, session) {
             sep = ""
           )
           this_paragraph <- paste(
-            "Based on <span class='bold'>", n_rows, " data point", if (n_rows > 1) "s", "</span> from a ", 
-            if(!is.null(design)) paste("<span class='bold'>", design, "</span>", sep = ""), " study ", 
-            if (!is.na(location)) location else if(!is.null(country)) paste("in <span 
-            class='bold'>", country, "</span>"), " (", if (this_citation != "") this_citation else 
-            "[CITATION NA]", ") this outcome was <span class='bold'>", percent, "</span> with 
-            this intervention than it was without this intervention (between ",lower_percent, " 
-            and ", upper_percent, ", based on the 95% confidence interval). <span class='bold'> 
-            Methods: </span>", if (methods_text != "") methods_text else paste("[METHODS NA]"), 
+            "Based on <span class='bold'>", n_rows, " data point", if (n_rows > 1) "s", "</span> 
+            from a ", if(!is.null(design)) paste("<span class='bold'>", design, "</span>", 
+            sep = ""), " study ", if (!is.na(location)) location else if(!is.null(country)) 
+            paste("in <span class='bold'>", country, "</span>"), " (", if (this_citation != "") 
+            this_citation else "[citation not available]", ") this outcome was <span 
+            class='bold'>", percent, "</span> with this intervention than it was without this 
+            intervention (between ", lower_percent, " and ", upper_percent, ", based on the 95% 
+            confidence interval). <span class='bold'> Methods: </span>", if (methods_text != "") 
+            methods_text else paste("[METHODS NA]"), 
             sep = ""
           )
           this_paragraph <- paste(this_paragraph_header, this_paragraph, "<br /><br /><hr /><br />", sep = "")
@@ -1174,9 +1175,10 @@ server <- function(input, output, session) {
         ci.lb, " &#8804; response ratio &#8804; ", ci.ub, ").
         <br />
         <br /> 
-        This analysis included <span class='red'>", n_rows, " data points from ", n_citations, 
-        " studies in ", n_publications, " publications</span> (please see the &quot;Data&quot; 
-        tab). ", 
+        This analysis included <span class='red'>", n_rows, " data point", if (n_rows > 1) "s", 
+        " from ", n_citations, if (n_citations > 1) " studies" else " study", " in ", 
+        n_publications, " publication", if (n_publications > 1) "s", "</span> (please see the 
+        &quot;Data&quot; tab). ", 
         if (n_rows > 1) { 
           paste(
             "There was ", if (QEp >= 0.05) "not ", "significant heterogeneity between these data 
@@ -1215,7 +1217,7 @@ server <- function(input, output, session) {
   output$forest_plot <- renderPlot({
     results <- get_results()
     results_by_study <- get_results_by_study()
-    if (!is.na(results) & !is.na(results_by_study)) {
+    if (!is.na(results)) {
       results_df <- data.frame(
         citation = "Mean effect size",
         effect_size = results$effect_size,
@@ -1229,20 +1231,22 @@ server <- function(input, output, session) {
         shape = 18,  # Diamond
         size = 24
       )
-      results_by_study_df <- results_by_study
-      results_by_study_df$shape <- 16  # Circle
-      results_by_study_df$size <- 8
-      results_by_study_df <- rbind(results_by_study_df, results_df)
-      results_by_study_df$citation <- reorder(results_by_study_df$citation, c(length(results_by_study_df$citation):1))
-      n_rows <- length(results_by_study_df$effect_size)
-      rv[["n_rows"]] <- n_rows  # For get_height()
-      p <- ggplot(data=results_by_study_df, aes(x=citation, y=effect_size, ymin=ci.lb, ymax=ci.ub)) +
-        geom_pointrange(shape=results_by_study_df$shape, fatten=results_by_study_df$size) + 
-        geom_hline(yintercept=1, lty=2) +
-        coord_flip() +
-        xlab("Study") + ylab("Response ratio") +
-        theme_bw(base_size=16)
-      p
+      if (!is.na(results_by_study)) {
+        results_by_study_df <- results_by_study
+        results_by_study_df$shape <- 16  # Circle
+        results_by_study_df$size <- 8
+        results_by_study_df <- rbind(results_by_study_df, results_df)
+        results_by_study_df$citation <- reorder(results_by_study_df$citation, c(length(results_by_study_df$citation):1))
+        n_rows <- length(results_by_study_df$effect_size)
+        rv[["n_rows"]] <- n_rows  # For get_height()
+        p <- ggplot(data=results_by_study_df, aes(x=citation, y=effect_size, ymin=ci.lb, ymax=ci.ub)) +
+          geom_pointrange(shape=results_by_study_df$shape, fatten=results_by_study_df$size) + 
+          geom_hline(yintercept=1, lty=2) +
+          coord_flip() +
+          xlab("Study") + ylab("Response ratio") +
+          theme_bw(base_size=16)
+        p
+      }
     }
   }, height=get_height())
 
