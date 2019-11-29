@@ -423,8 +423,10 @@ server <- function(input, output, session) {
       endpoint <- paste(host, "attributes/?parent=", this_subject_attribute, sep="")
       attributes <- fromJSON(endpoint, flatten=FALSE)
       attribute_types <- attributes$results$type
+      attribute_units <- attributes$results$unit
       attributes <- attributes$results$attribute
-      attribute_types <- attribute_types[order(attributes)]  # Sort attribute types in the same order that we will sort attributes
+      attribute_types <- attribute_types[order(attributes)]  # Sort in the same order that we will sort attributes
+      attribute_units <- attribute_units[order(attributes)]  # Sort in the same order that we will sort attributes
       attributes <- attributes[order(attributes)]            # Sort attributes alphabetically
       
       
@@ -591,10 +593,11 @@ server <- function(input, output, session) {
       attributes_df <- data.frame(attribute = c("Country", "Design"))
       attributes_df$options <- c(list(countries), list(designs))
       attributes_df$type <- c("factor", "factor")
+      attributes_df$unit <- c("", "")
       
       # Subject-specific attributes
       if (!is.null(attributes)) {
-        attributes_df <- rbind(attributes_df, data.frame(attribute = attributes, options = NA, type = attribute_types))
+        attributes_df <- rbind(attributes_df, data.frame(attribute = attributes, options = NA, type = attribute_types, unit = attribute_units))
         for (attribute in attributes) {
           options <- unique(unlist(df[attribute]))
           options <- list(sort(options[!is.na(options)]))
@@ -622,13 +625,13 @@ server <- function(input, output, session) {
         if(attributes_df$type[i] == "factor") {
           options <- sort(unique(unlist(df[[paste(attributes_df$attribute[i])]])))
           tagList(
-            selectInput(paste(attributes_df$encoded_attribute[i]), paste(attributes_df$attribute[i], ":", sep = ""), options, multiple=TRUE)
+            selectInput(paste(attributes_df$encoded_attribute[i]), paste(attributes_df$attribute[i]), options, multiple=TRUE)
           )
         } else {
           min <- min(as.numeric(unlist(df[[paste(attributes_df$attribute[i])]])), na.rm = TRUE)
           max <- max(as.numeric(unlist(df[[paste(attributes_df$attribute[i])]])), na.rm = TRUE)
           tagList(
-            sliderInput(paste(attributes_df$encoded_attribute[i]), paste(attributes_df$attribute[i], ":", sep = ""), min = min, max = max, value = c(min, max))
+            sliderInput(paste(attributes_df$encoded_attribute[i]), paste(attributes_df$attribute[i], " (", attributes_df$unit[i], ")", sep = ""), min = min, max = max, value = c(min, max))
           )
         }
       })
@@ -1115,8 +1118,8 @@ server <- function(input, output, session) {
           }
           this_paragraph_header <- paste(
             "<span class='bold'>", this_citation, "</span><br /><br />",
-            "Intervention: <span class='italic'>", di$intervention[1], "</span><br /><br />",
-            "Outcome: <span class='italic'>", di$outcome[1], "</span><br /><br />",
+            "This intervention: <span class='italic'>", di$intervention[1], "</span><br /><br />",
+            "This outcome: <span class='italic'>", di$outcome[1], "</span><br /><br />",
             sep = ""
           )
           this_paragraph <- paste(
@@ -1346,7 +1349,8 @@ server <- function(input, output, session) {
   #pat <- paste("\\b", pat, "\\b", collapse = "|", sep = "")
   #output$debug3 <- renderPrint(grepl(pat, inp))
   
-  #output$debug1 <- renderPrint(attributes_df[3])  # Encoded attributes
+  #output$debug1 <- renderPrint(attribute_units)  # Encoded attributes
+  #output$debug2 <- renderPrint(attributes_df)  # Encoded attributes
   #output$debug1 <- renderPrint(get_filter(input[[paste(attributes_df$attribute[4])]], df[[paste(attributes_df$attribute[4])]]))
   #output$debug1 <- renderPrint(bookmarked_settings)
   #output$debug2 <- renderPrint(settings())
