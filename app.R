@@ -948,7 +948,7 @@ server <- function(input, output, session) {
             ci.lb <- round(ci.lb, 2)
             ci.ub <- exp(d$log_response_ratio[1] + (1.96 * sqrt(d$weighted_v[1])))
             ci.ub <- round(ci.ub, 2)
-            zval <- abs(d$log_response_ratio[1] / sqrt(d$weighted_v[i]))
+            zval <- abs(d$log_response_ratio[1] / sqrt(d$weighted_v[1]))
             pval <- 2 * (1 - pnorm(zval))
             QE <- NA
             QEp <- NA
