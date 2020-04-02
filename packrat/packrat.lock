@@ -15,6 +15,18 @@ Hash: f72fd6ee6cf1656384503d6c7ca6cd96
 Requires: crosstalk, htmltools, htmlwidgets, jsonlite, magrittr,
     promises
 
+Package: MuMIn
+Source: CRAN
+Version: 1.43.15
+Hash: 669b8e42aab820c37aa60c341b1e0c53
+Requires: nlme
+
+Package: PKI
+Source: CRAN
+Version: 0.1-5.1
+Hash: 8c194fb34ebaab38a13e43ce84feedee
+Requires: base64enc
+
 Package: R6
 Source: CRAN
 Version: 2.4.0
@@ -24,6 +36,17 @@ Package: RColorBrewer
 Source: CRAN
 Version: 1.1-2
 Hash: c0d56cd15034f395874c870141870c25
+
+Package: RCurl
+Source: CRAN
+Version: 1.95-4.12
+Hash: 261163f9c66d2a2c7ef8028765ed2838
+Requires: bitops
+
+Package: RJSONIO
+Source: CRAN
+Version: 1.3-1.3
+Hash: 9c4ccb109609c4c185c9aa34d68be5d6
 
 Package: Rcpp
 Source: CRAN
@@ -62,6 +85,11 @@ Package: base64enc
 Source: CRAN
 Version: 0.1-3
 Hash: c590d29e555926af053055e23ee79efb
+
+Package: bitops
+Source: CRAN
+Version: 1.0-6
+Hash: 67d0775189fd0041d95abca618c5c07e
 
 Package: cli
 Source: CRAN

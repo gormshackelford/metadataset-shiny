@@ -1,4 +1,5 @@
-rm(list = ls())
+rm(list = ls())     # Remove all from the environment.
+options(warn = -1)  # Suppress warnings.
 
 library(shiny)
 library(shinycssloaders)
@@ -231,6 +232,7 @@ server <- function(input, output, session) {
     #subject = 7
     #intervention = 774  # Herbicides
     #intervention = 782  # Cutting/chopping
+    #publication = "26309"
 
     # Uncomment the following for testing the data on Himalayan balsam.
     #subject = 8
@@ -242,9 +244,13 @@ server <- function(input, output, session) {
     #subject = "10"
     #intervention = "774"  # Herbicides
     #intervention = "782"  # Cutting/chopping
-    #publication = "26083"
 
-    # Uncomment one of the following outcomes for testing the data on cover crops.
+    # Uncomment one of the following outcomes for the data on cassava.
+    #subject <- "1"  # Cassava
+    #publication <- "16513"
+    
+    # Uncomment one of the following outcomes for the data on cover crops.
+    #publication <- 22270
     #outcome <- "4"  # Crop yield
     #outcome <- "20"  # Soil
     #outcome <- "198"  # Soil organic matter
@@ -256,7 +262,7 @@ server <- function(input, output, session) {
     #outcome <- "166"  # Crop damage
     #outcome <- "455"  # Weed abundance
     #outcome <- "456"  # Weed diversity
-
+    
     # Connect to AWS S3 using credentials for the user, "metadataset-shiny".
     s3_credentials <- config::get("s3")
     Sys.setenv(
@@ -309,14 +315,14 @@ server <- function(input, output, session) {
       output$outcome <- renderUI(HTML(paste("<span class='bold'>This outcome:</span><span class='italic'>", outcome, "</span>")))
     } else {
       use_cached_data <- FALSE
-      # Delete the cached data, if it exists.
-      s3_objects <- get_bucket(s3_bucket, prefix = digest(api_query_string))
-      if (length(s3_objects) > 0) {
-        for (i in 1:length(s3_objects)) {
-          key <- unlist(s3_objects[i])[1]
-          delete_object(key, s3_bucket)
-        }
-      }
+      ## Delete the cached data, if it exists. Warning: this could create race conditions.
+      #s3_objects <- get_bucket(s3_bucket, prefix = digest(api_query_string))
+      #if (length(s3_objects) > 0) {
+      #  for (i in 1:length(s3_objects)) {
+      #    key <- unlist(s3_objects[i])[1]
+      #    delete_object(key, s3_bucket)
+      #  }
+      #}
       # Get the non-cached data from the API.
       results <- get_data_from_api(endpoint)
       df <- results
@@ -356,6 +362,9 @@ server <- function(input, output, session) {
       s3saveRDS(outcome, object = cached_outcome, s3_bucket, check_region=FALSE)
       output$outcome <- renderUI(HTML(paste("This outcome:<span class='italic'>", outcome, "</span>")))
       
+      # Publication-level metadata
+      names(df)[names(df) == "publication.EAV_publication"] <- "EAV_publication"
+      names(df)[names(df) == "publication.xcountry_publication"] <- "publication_country"
       # Intervention-level metadata
       names(df)[names(df) == "experiment.intervention"] <- "intervention"
       names(df)[names(df) == "experiment.EAV_experiment"] <- "EAV_intervention"
@@ -373,6 +382,8 @@ server <- function(input, output, session) {
       names(df)[names(df) == "experiment_population_outcome.study_outcome"] <- "outcome_study"
       
       # Country
+      df$publication_country <- lapply(df$publication_country, unlist)
+      df$publication_country <- cbind(lapply(df$publication_country, function(x) if(is.null(x)) NA else x))
       df$intervention_country <- lapply(df$intervention_country, unlist)
       df$intervention_country <- cbind(lapply(df$intervention_country, function(x) if(is.null(x)) NA else x))
       df$population_country <- lapply(df$population_country, unlist)
@@ -380,7 +391,8 @@ server <- function(input, output, session) {
       df$outcome_country <- lapply(df$outcome_country, unlist)
       df$outcome_country <- cbind(lapply(df$outcome_country, function(x) if(is.null(x)) NA else x))
       # Select the metadata at the lowest level (intervention > population > outcome)
-      df$Country <- df$intervention_country
+      df$Country <- df$publication_country
+      df$Country[!is.na(df$intervention_country)] <- df$intervention_country[!is.na(df$intervention_country)]
       df$Country[!is.na(df$population_country)] <- df$population_country[!is.na(df$population_country)]
       df$Country[!is.na(df$outcome_country)] <- df$outcome_country[!is.na(df$outcome_country)]
       df$Country <- lapply(df$Country, unlist)
@@ -475,7 +487,11 @@ server <- function(input, output, session) {
           return(EAV_df)
         }
         
-        # Intervention-level EAVs
+        # Publication-level EAVs
+        EAV_publication_df <- get_EAV_df(df$EAV_publication)
+        incProgress(0.10)
+
+                # Intervention-level EAVs
         EAV_intervention_df <- get_EAV_df(df$EAV_intervention)
         incProgress(0.10)
         
@@ -487,12 +503,14 @@ server <- function(input, output, session) {
         EAV_outcome_df <- get_EAV_df(df$EAV_outcome)
         incProgress(0.10)
         
-        # Select the metadata at the lowest level (intervention > population > outcome)
-        EAV_df <- EAV_intervention_df
+        # Select the metadata at the lowest level (publication > intervention > population > outcome)
+        EAV_df <- EAV_publication_df
         for (attribute in attributes) {
           EAV_df[[attribute]] <- as.character(EAV_df[[attribute]])
+          EAV_intervention_df[[attribute]] <- as.character(EAV_intervention_df[[attribute]])
           EAV_population_df[[attribute]] <- as.character(EAV_population_df[[attribute]])
           EAV_outcome_df[[attribute]] <- as.character(EAV_outcome_df[[attribute]])
+          EAV_df[[attribute]][!is.na(EAV_intervention_df[[attribute]])] <- EAV_intervention_df[[attribute]][!is.na(EAV_intervention_df[[attribute]])]
           EAV_df[[attribute]][!is.na(EAV_population_df[[attribute]])] <- EAV_population_df[[attribute]][!is.na(EAV_population_df[[attribute]])]
           EAV_df[[attribute]][!is.na(EAV_outcome_df[[attribute]])] <- EAV_outcome_df[[attribute]][!is.na(EAV_outcome_df[[attribute]])]
         }
@@ -775,6 +793,7 @@ server <- function(input, output, session) {
       df$selected_v <- df$v_from_sd_and_n
     }
     df$selected_v[is.infinite(df$selected_v)] <- NA
+    df$selected_v[df$selected_v == 0] <- NA
     
     # Define independent data points "studies" within publications, based on user input.
     df$study <- paste("Study ID ", df$study_id, sep = "")
@@ -814,20 +833,19 @@ server <- function(input, output, session) {
       }
     }
     
-    # Weighted variance
+    # Study weights
     citations <- unique(df$citation)
     n_citations <- length(citations)
     encoded_citations <- gsub("[^[:alnum:]_]", "", citations)  # Delete non-alphanumeric characters (except underscores)
     for (i in 1:n_citations) {
       encoded_citation <- encoded_citations[i]
       if (encoded_citation %in% names(settings())) {
-        weight <- input[[encoded_citation]]
+        relevance_weight <- input[[encoded_citation]]
       } else {
-        weight <- 1
+        relevance_weight <- 1
       }
-      df$weight[df$citation == citations[i]] <- weight
+      df$relevance_weight[df$citation == citations[i]] <- relevance_weight
     }
-    df$weighted_v <- df$selected_v * (1 / df$weight)
 
     return(df)
     
@@ -902,7 +920,7 @@ server <- function(input, output, session) {
         options = list(
           dom = 'Bfrtip', 
           buttons = c('copy', 'csv'),
-          pageLength = 100
+          pageLength = 250
         )
       )}),
       server = TRUE
@@ -930,7 +948,19 @@ server <- function(input, output, session) {
       } else {
         if (n_rows > 0) {
           if (n_rows > 1) {
-            model <- rma.mv(yi = log_response_ratio, V = weighted_v, random = ~ 1 | publication/study, data = d)
+            
+            # The default model (with inverse-variance weights, without relevance weights)
+            model <- rma.mv(yi = log_response_ratio, V = selected_v, random = ~ 1 | publication/study, data = d)
+            # M is the variance-covariance matrix from the default model. The inverse of M is the
+            # default weight matrix: weights(model, type = "matrix").
+            M <- model$M
+            # C is a diagonal matrix of user-defined relevance weights.
+            C <- diag(d$relevance_weight)
+            # Here we modify the default weight matrix (solve(M)) by multiplying it by C.
+            W <- sqrt(C) %*% solve(M) %*% sqrt(C)
+            # Then we fit a new model with this modified weight matrix.
+            model <- rma.mv(yi = log_response_ratio, V = selected_v, W = W, random = ~ 1 | publication/study, data = d)
+
             log_response_ratio <- model$b
             log_response_ratio_se <- model$se
             effect_size <- as.numeric(round(exp(model$b), 2))  # Effect size = response ratio
@@ -942,13 +972,13 @@ server <- function(input, output, session) {
             if (QEp == 0) QEp <- 0.0001
           } else if (n_rows == 1) {
             log_response_ratio <- d$log_response_ratio[1]
-            log_response_ratio_se <- sqrt(d$weighted_v[1])
+            log_response_ratio_se <- sqrt(d$selected_v[1])
             effect_size <- as.numeric(round(exp(d$log_response_ratio[1]), 2))  # Effect size = response ratio
-            ci.lb <- exp(d$log_response_ratio[1] - (1.96 * sqrt(d$weighted_v[1])))
+            ci.lb <- exp(d$log_response_ratio[1] - (1.96 * sqrt(d$selected_v[1])))
             ci.lb <- round(ci.lb, 2)
-            ci.ub <- exp(d$log_response_ratio[1] + (1.96 * sqrt(d$weighted_v[1])))
+            ci.ub <- exp(d$log_response_ratio[1] + (1.96 * sqrt(d$selected_v[1])))
             ci.ub <- round(ci.ub, 2)
-            zval <- abs(d$log_response_ratio[1] / sqrt(d$weighted_v[1]))
+            zval <- abs(d$log_response_ratio[1] / sqrt(d$selected_v[1]))
             pval <- 2 * (1 - pnorm(zval))
             QE <- NA
             QEp <- NA
@@ -991,15 +1021,15 @@ server <- function(input, output, session) {
             results_df <- data.frame(
               citation = d$citation,
               effect_size = exp(d$log_response_ratio[1]),  # Effect size = response ratio
-              ci.lb = exp(d$log_response_ratio[1] - (1.96 * sqrt(d$weighted_v[1]))),
-              ci.ub = exp(d$log_response_ratio[1] + (1.96 * sqrt(d$weighted_v[1]))),
+              ci.lb = exp(d$log_response_ratio[1] - (1.96 * sqrt(d$selected_v[1]))),
+              ci.ub = exp(d$log_response_ratio[1] + (1.96 * sqrt(d$selected_v[1]))),
               log_response_ratio = d$log_response_ratio[1],
-              log_response_ratio_se = sqrt(d$weighted_v[1])  # Standard error of the log response ratio (not the response ratio) for the funnel plot
+              log_response_ratio_se = sqrt(d$selected_v[1])  # Standard error of the log response ratio (not the response ratio) for the funnel plot
             )
           }
           results <- list(effect_size = effect_size, ci.lb = ci.lb, ci.ub = ci.ub, pval = pval, QE = QE, QEp = QEp, direction = direction, percent = percent, lower_percent = lower_percent, upper_percent = upper_percent, log_response_ratio = log_response_ratio, log_response_ratio_se = log_response_ratio_se, results_df = results_df, d = d, n_publications = n_publications, n_citations = n_citations, n_rows = n_rows)
           s3saveRDS(results, object = cached_results, s3_bucket, check_region=FALSE)
-          rv[["use_cached_data"]] <- TRUE
+          #rv[["use_cached_data"]] <- TRUE
         } else {  # if (n_rows == 0)
           results <- NA
         }
@@ -1018,14 +1048,14 @@ server <- function(input, output, session) {
       n_citations <- results$n_citations
       citations <- unique(d$citation)
       results_by_study_df <- data.frame(matrix(nrow = n_citations, ncol = 8))
-      colnames(results_by_study_df) <- c("citation", "effect_size", "ci.lb", "ci.ub", "log_response_ratio", "log_response_ratio_se", "weight", "paragraph")
+      colnames(results_by_study_df) <- c("citation", "effect_size", "ci.lb", "ci.ub", "log_response_ratio", "log_response_ratio_se", "relevance_weight", "paragraph")
       for (i in 1:n_citations) {
         this_citation <- citations[i]
         di <- subset(d, citation == this_citation)
         n_rows <- length(di$es_and_v)
         if (n_rows > 0) {
           results_by_study_df$citation[i] <- this_citation
-          results_by_study_df$weight[i] <- mean(di$weight)
+          results_by_study_df$relevance_weight[i] <- mean(di$relevance_weight)
           
           get_countries <- function() {
             if (length(countries) > 1) {
@@ -1074,7 +1104,7 @@ server <- function(input, output, session) {
           location <- unique(di$Location)
           methods_text <- unique(unlist(di$Methods))
           if (n_rows > 1) {
-            model <- rma.mv(yi = log_response_ratio, V = weighted_v, random = ~ 1 | study, data = di)
+            model <- rma.mv(yi = log_response_ratio, V = selected_v, random = ~ 1 | study, data = di)
             effect_size <- as.numeric(round(exp(model$b), 2))  # Response ratio
             ci.lb <- round(exp(model$ci.lb), 2)                # Lower bound of the confidence interval
             ci.ub <- round(exp(model$ci.ub), 2)                # Upper bound of the confidence interval
@@ -1082,10 +1112,10 @@ server <- function(input, output, session) {
             log_response_ratio_se <- round(model$se, 2)        # Standard error of the log response ratio (not the response ratio) for the funnel plot
           } else if (n_rows == 1) {
             effect_size <- as.numeric(round(exp(di$log_response_ratio[1]), 2))
-            ci.lb <- round(exp(di$log_response_ratio[1] - (1.96 * sqrt(di$weighted_v[1]))), 2)
-            ci.ub <- round(exp(di$log_response_ratio[1] + (1.96 * sqrt(di$weighted_v[1]))), 2)
+            ci.lb <- round(exp(di$log_response_ratio[1] - (1.96 * sqrt(di$selected_v[1]))), 2)
+            ci.ub <- round(exp(di$log_response_ratio[1] + (1.96 * sqrt(di$selected_v[1]))), 2)
             log_response_ratio <- round(di$log_response_ratio[1], 2)
-            log_response_ratio_se <- round(sqrt(di$weighted_v[1]), 2)
+            log_response_ratio_se <- round(sqrt(di$selected_v[1]), 2)
           }
           results_by_study_df$effect_size[i] <- effect_size
           results_by_study_df$ci.lb[i] <- ci.lb
@@ -1228,7 +1258,7 @@ server <- function(input, output, session) {
         ci.ub = results$ci.ub,
         log_response_ratio = results$log_response_ratio,
         log_response_ratio_se = results$log_response_ratio_se,
-        weight = "",
+        relevance_weight = "",
         paragraph = "",
         encoded_citation = "",
         shape = 18,  # Diamond
@@ -1294,7 +1324,7 @@ server <- function(input, output, session) {
           HTML("<tr><td>"),
           HTML(paste(df$paragraph[i])),
           HTML("</td><td class='padding-left'>"),
-          sliderInput(paste(df$encoded_citation[i]), "Weight for this study", value = df$weight[i], min = 0.01, max = 1, step = 0.01),
+          sliderInput(paste(df$encoded_citation[i]), "Relevance weight for this study", value = df$relevance_weight[i], min = 0.0000001, max = 1, step = 0.1),
           HTML("</td></tr>")
         )
       })
