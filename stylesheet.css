@@ -3,16 +3,59 @@
 
 body {
   font-family: "Noto Serif", sans-serif;
-  font-size: 1.5rem;
+  font-size: 15px;
+  line-height: 21px;
+  font-weight: normal;
 }
 
 h1 {
   font-family: "Noto Serif", serif;
-  font-size: 3rem;
+  font-size: 30px;
+  line-height: 42px;
 }
 
-td.padding-left {
-  padding-left: 3em;
+h2 {
+  font-family: "Noto Serif", serif;
+  font-size: 21px;
+  line-height: 42px;
+  margin: 0;
+}
+
+a, a:visited {
+  color: #3399ff;
+  text-decoration: none;
+}
+
+a:hover {
+  color: #ff6666;
+  text-decoration: underline;
+}
+
+div.col-sm-4 {
+  padding-top: 15px;
+}
+
+div.col-sm-8 {
+  padding-top: 15px;
+  padding-left: 15px;
+  padding-right: 0px;
+}
+
+div.shiny-notification {
+  margin-left: 0px;
+}
+
+form.well {
+  padding-top: 0px;
+}
+
+label.control-label {
+  font-size: 15px;
+  font-weight: normal;
+}
+
+span.blue {
+  color: #3399ff;
 }
 
 span.bold {
@@ -25,6 +68,37 @@ span.italic {
 
 span.red {
   color: #ff6666;
+}
+
+td.padding-left {
+  padding-left: 3em;
+}
+
+#bookmark_link {
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
+}
+
+#column-left {
+  background-color: #f5f5f5;
+  border: solid 1px #e3e3e3;
+  border-radius: 4px;
+}
+
+#column-right {
+  padding-left: 30px;
+}
+
+#downloadData {
+  color: black;
+}
+
+#shiny-notification-panel {
+  left: 15px;
+  right: auto;
+  bottom: 15px;
+  padding-left: 0px;
 }
 
 #loading_window {

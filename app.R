@@ -1,5 +1,4 @@
-rm(list = ls())     # Remove all from the environment.
-options(warn = -1)  # Suppress warnings.
+rm(list = ls())        # Remove all from the environment.
 
 library(shiny)
 library(shinycssloaders)
@@ -9,11 +8,26 @@ library(aws.s3)
 library(httr)
 library(jsonlite)
 library(nlme)
-library(DT)
 library(ggplot2)
+library(showtext)
+library(svglite)
 library(metafor)
+library(MuMIn)
 
-options(scipen = 999)
+eval(metafor:::.MuMIn)
+
+options(warn = -1)     # Suppress warnings.
+options(scipen = 999)  # Suppress scientific notation (e.g., 1e10).
+
+font_add_google(name = "Noto Serif", family = "Noto Serif", regular.wt = 400, bold.wt = 700)
+showtext_auto()
+
+
+
+
+#####################################################################################################
+# UI
+#####################################################################################################
 
 
 
@@ -31,11 +45,10 @@ ui <- function(request) { fluidPage(
   #),
   titlePanel(""),
   tabsetPanel(type = "tabs",
-    tabPanel("Meta-analysis",
-      sidebarLayout(position = "left",
+    tabPanel("Dynamic meta-analysis",
+      sidebarLayout(position = "right",
         sidebarPanel(
           h1('Filters'),
-          HTML('<br />'),
           uiOutput('data_filters'),
           HTML('<br />'),
           h1('Settings'),
@@ -82,21 +95,56 @@ ui <- function(request) { fluidPage(
           uiOutput('refresh_button')
           ),
         mainPanel(
-          HTML('<br />'),
-          h1('Meta-analysis'),
-          HTML('<br />'),
-          uiOutput('intervention'),
-          HTML('<br />'),
-          uiOutput('outcome'),
-          HTML('<br />'),
-          actionButton("go", "Start your analysis"),
-          actionButton("make_bookmark", "Bookmark your analysis"),
-          HTML('<br />'),
-          HTML('<br />'),
-          uiOutput('bookmark_link'),
-          HTML('<br />'),
-          HTML('<br />'),
-          uiOutput('paragraph'),
+          HTML('<div class="col-sm-6" id="column-left">'),
+            HTML('<h1>Dynamic meta-analysis</h1>'),
+            HTML('To analyse the effect of this intervention on this outcome, we suggest (1) subgroup 
+              analysis first (faster and simpler) and (2) meta-regression second (slower and more 
+              complicated, but potentially more powerful).'),
+            HTML('<br />'),
+            HTML('<br />'),
+            uiOutput('intervention'),
+            HTML('<br />'),
+            uiOutput('outcome'),
+            HTML('<br />'),
+            HTML('<h1>Data</h1>'),
+            downloadButton("downloadData", "Download CSV"),
+            HTML('<br />'),
+            HTML('<br />'),
+            HTML('<br />'),
+          HTML('</div>'),
+          HTML('<div class="col-sm-6" id="column-right">'),
+            HTML('<h1>(1) Subgroup analysis</h1>'),
+            HTML('Subgroup analysis uses only the data that you have filtered.'),
+            HTML('<br />'),
+            HTML('<br />'),
+            actionButton("go", "Subgroup analysis"),
+            actionButton("make_bookmark", "Bookmark your analysis"),
+            HTML('<br />'),
+            uiOutput('bookmark_link'),
+            HTML('<br />'),
+            imageOutput('subgroup_analysis_plot', inline = TRUE),
+            HTML('<br />'),
+            HTML('<br />'),
+            uiOutput('paragraph'),
+            HTML('<br />'),
+            HTML('<h1>(2) Meta-regression</h1>'),
+            HTML('Meta-regression uses all of the data, not only the data that you have filtered 
+              (unlike subgroup analysis). In meta-regression, the results for your data will differ 
+              from the overall results only if at least one of your filters has a statistically 
+              significant effect. Meta-regression is potentially more powerful than subgroup analysis, 
+              but it is also much slower. Please finish your subgroup analysis first, and then do your 
+              meta-regression second, using the same filters that you used for your subgroup 
+              analysis.'),
+            HTML('<br />'),
+            HTML('<br />'),
+            actionButton("meta_regression_go", "Meta regression"),
+            HTML('<br />'),
+            HTML('<br />'),
+            imageOutput('meta_regression_plot', inline = TRUE),
+            HTML('<br />'),
+            HTML('<br />'),
+            uiOutput('meta_regression_paragraph'),
+          HTML('</div>'),
           HTML('<br />'),
           HTML('<br />'),
           uiOutput('debug1'),
@@ -110,34 +158,44 @@ ui <- function(request) { fluidPage(
         )
         )
       ),
-    tabPanel("Data",
-      mainPanel(
-        HTML('<br />'),
-        h1('Data'),
-        HTML('<br />'),
-        HTML('<br />'),
-        DT::dataTableOutput('data_table')
-      )
-    ),
     tabPanel("Forest plot",
       mainPanel(
-        HTML('<br />'),
         h1('Forest plot'),
         HTML('<br />'),
-        withSpinner(plotOutput('forest_plot'))
+        withSpinner(imageOutput('forest_plot'))
       )
     ),
     tabPanel("Funnel plot",
       mainPanel(
-        HTML('<br />'),
         h1('Funnel plot'),
         HTML('<br />'),
-        withSpinner(plotOutput('funnel_plot'))
+        withSpinner(imageOutput('funnel_plot'))
+      )
+    ),
+    tabPanel("Model summaries",
+        h1('Model summaries'),
+        HTML('Please note that these summaries are in units of <span class="bold">log response ratio</span>, 
+          which are back-transformed into units of <span class="bold">response ratio</span> when 
+          reported on the &quot;Dynamic meta-analysis&quot; tab.'),
+        HTML('<br />'),
+        h1('(1) Subgroup analysis'),
+        withSpinner(verbatimTextOutput('subgroup_analysis_summary')),
+        HTML('<br />'),
+        h1('(2) Meta-regression'),
+        withSpinner(verbatimTextOutput('meta_regression_call')),
+        withSpinner(verbatimTextOutput('meta_regression_summary'))
+      ),
+    tabPanel("Study summaries and weights",
+      mainPanel(
+        h1('Study summaries'),
+        HTML('<br />'),
+        HTML('<table>'),
+        uiOutput('summaries'),
+        HTML('</table>')
       )
     ),
     tabPanel("Value judgements",
       mainPanel(
-        HTML('<br />'),
         h1('Value judgements'),
         HTML('<br />'),
         HTML('Is it better for an outcome to increase or decrease as a result of an intervention? 
@@ -157,19 +215,18 @@ ui <- function(request) { fluidPage(
         HTML('<br />'),
         uiOutput('outcome_filters')
         )
-      ),
-    tabPanel("Study summaries and weights",
-      mainPanel(
-        HTML('<br />'),
-        h1('Study summaries'),
-        HTML('<br />'),
-        HTML('<table>'),
-        uiOutput('summaries'),
-        HTML('</table>')
       )
     )
-    )
-  )}  # End of UI
+  )
+}  # End of UI
+
+
+
+
+
+#####################################################################################################
+# Server
+#####################################################################################################
 
 
 
@@ -225,31 +282,28 @@ server <- function(input, output, session) {
       use_cached_data <- TRUE
     }
     
-    # Uncomment the following for testing the data on all agricultural subjects.
-    #subject = 2
-    
-    # Uncomment the following for testing the data on Japanese knotweed.
+    # Uncomment the following for data on Japanese knotweed.
     #subject = 7
     #intervention = 774  # Herbicides
     #intervention = 782  # Cutting/chopping
     #publication = "26309"
 
-    # Uncomment the following for testing the data on Himalayan balsam.
+    # Uncomment the following for data on Himalayan balsam.
     #subject = 8
     #intervention = 774  # Herbicides
     #intervention = 782  # Cutting/chopping
     #outcome = 348  # Plants (weeds and invasive species)
     
-    # Uncomment the following for testing the data on Giant hogweed.
+    # Uncomment the following for data on Giant hogweed.
     #subject = "10"
     #intervention = "774"  # Herbicides
     #intervention = "782"  # Cutting/chopping
 
-    # Uncomment one of the following outcomes for the data on cassava.
+    # Uncomment the following for data on cassava.
     #subject <- "1"  # Cassava
     #publication <- "16513"
     
-    # Uncomment one of the following outcomes for the data on cover crops.
+    # Uncomment the following for data on cover crops.
     #publication <- 22270
     #outcome <- "4"  # Crop yield
     #outcome <- "20"  # Soil
@@ -310,9 +364,9 @@ server <- function(input, output, session) {
       df <- s3readRDS(cached_data, s3_bucket, check_region=FALSE)
       attributes_df <- s3readRDS(cached_attributes, s3_bucket, check_region=FALSE)
       intervention <- s3readRDS(cached_intervention, s3_bucket, check_region=FALSE)
-      output$intervention <- renderUI(HTML(paste("<span class='bold'>This intervention:</span><span class='italic'>", intervention, "</span>")))
+      output$intervention <- renderUI(HTML(paste("<h1>This intervention</h1>", intervention)))
       outcome <- s3readRDS(cached_outcome, s3_bucket, check_region=FALSE)
-      output$outcome <- renderUI(HTML(paste("<span class='bold'>This outcome:</span><span class='italic'>", outcome, "</span>")))
+      output$outcome <- renderUI(HTML(paste("<h1>This outcome</h1>", outcome)))
     } else {
       use_cached_data <- FALSE
       ## Delete the cached data, if it exists. Warning: this could create race conditions.
@@ -324,8 +378,7 @@ server <- function(input, output, session) {
       #  }
       #}
       # Get the non-cached data from the API.
-      results <- get_data_from_api(endpoint)
-      df <- results
+      df <- get_data_from_api(endpoint)
     }
     
     
@@ -348,7 +401,7 @@ server <- function(input, output, session) {
         intervention <- "All interventions"
       }
       s3saveRDS(intervention, object = cached_intervention, s3_bucket, check_region=FALSE)
-      output$intervention <- renderUI(HTML(paste("This intervention:<span class='italic'>", intervention, "</span>")))
+      output$intervention <- renderUI(HTML(paste("<h1>This intervention</h1>", intervention)))
       
       # Outcome
       if (outcome != "") {
@@ -360,7 +413,7 @@ server <- function(input, output, session) {
         outcome <- "All outcomes"
       }
       s3saveRDS(outcome, object = cached_outcome, s3_bucket, check_region=FALSE)
-      output$outcome <- renderUI(HTML(paste("This outcome:<span class='italic'>", outcome, "</span>")))
+      output$outcome <- renderUI(HTML(paste("<h1>This outcome</h1>", outcome)))
       
       # Publication-level metadata
       names(df)[names(df) == "publication.EAV_publication"] <- "EAV_publication"
@@ -491,7 +544,7 @@ server <- function(input, output, session) {
         EAV_publication_df <- get_EAV_df(df$EAV_publication)
         incProgress(0.10)
 
-                # Intervention-level EAVs
+        # Intervention-level EAVs
         EAV_intervention_df <- get_EAV_df(df$EAV_intervention)
         incProgress(0.10)
         
@@ -610,16 +663,24 @@ server <- function(input, output, session) {
       # Generic attributes
       attributes_df <- data.frame(attribute = c("Country", "Design"))
       attributes_df$options <- c(list(countries), list(designs))
+      attributes_df$min <- c(NA, NA)
+      attributes_df$max <- c(NA, NA)
       attributes_df$type <- c("factor", "factor")
       attributes_df$unit <- c("", "")
       
       # Subject-specific attributes
       if (!is.null(attributes)) {
-        attributes_df <- rbind(attributes_df, data.frame(attribute = attributes, options = NA, type = attribute_types, unit = attribute_units))
+        attributes_df <- rbind(attributes_df, data.frame(attribute = attributes, options = NA, min = NA, max = NA, type = attribute_types, unit = attribute_units))
         for (attribute in attributes) {
           options <- unique(unlist(df[attribute]))
           options <- list(sort(options[!is.na(options)]))
           attributes_df$options[attributes_df$attribute == attribute] <- options
+          if (attributes_df$type[attributes_df$attribute == attribute] == "number") {
+            min <- min(as.numeric(unlist(df[attribute])), na.rm = TRUE)
+            max <- max(as.numeric(unlist(df[attribute])), na.rm = TRUE)
+            attributes_df$min[attributes_df$attribute == attribute] <- min
+            attributes_df$max[attributes_df$attribute == attribute] <- max
+          }
         }
       }
       
@@ -648,13 +709,15 @@ server <- function(input, output, session) {
         } else {
           min <- min(as.numeric(unlist(df[[paste(attributes_df$attribute[i])]])), na.rm = TRUE)
           max <- max(as.numeric(unlist(df[[paste(attributes_df$attribute[i])]])), na.rm = TRUE)
+          attributes_df$min[i] <- min
+          attributes_df$max[i] <- max
           tagList(
             sliderInput(paste(attributes_df$encoded_attribute[i]), paste(attributes_df$attribute[i], " (", attributes_df$unit[i], ")", sep = ""), min = min, max = max, value = c(min, max))
           )
         }
       })
     })
-    
+
     # Outcomes
     outcomes <- sort(unique(unlist(df$outcome)))
     encoded_outcomes <- gsub("[^[:alnum:]_]", "", outcomes)  # Delete non-alphanumeric characters (except underscores)
@@ -677,7 +740,7 @@ server <- function(input, output, session) {
     
     # Selectors for column names
     output$column_names <- renderUI({
-      selectInput("column_names", "Columns:", unique(attributes_df$attribute), multiple=TRUE)
+      selectInput("column_names", "Columns", unique(attributes_df$attribute), multiple=TRUE)
     })
     outputOptions(output, "column_names", suspendWhenHidden = FALSE)
     
@@ -686,6 +749,7 @@ server <- function(input, output, session) {
   
   
   
+  # Save a copy of this df, so that we can revert to it later.
   original_df <- df
   
   
@@ -713,9 +777,9 @@ server <- function(input, output, session) {
   
   
   
-  #####################
+  ###################################################################################################
   # Reactive components
-  #####################
+  ###################################################################################################
   
   
   
@@ -723,13 +787,8 @@ server <- function(input, output, session) {
   settings <- reactive({
     all_inputs <- reactiveValuesToList(input)
     if("go" %in% names(all_inputs)) all_inputs$go <- NULL
+    if("meta_regression_go" %in% names(all_inputs)) all_inputs$meta_regression_go <- NULL
     if("make_bookmark" %in% names(all_inputs)) all_inputs$make_bookmark <- NULL
-    if("data_table_state" %in% names(all_inputs)) all_inputs$data_table_state <- NULL
-    if("data_table_rows_all" %in% names(all_inputs)) all_inputs$data_table_rows_all <- NULL
-    if("data_table_rows_current" %in% names(all_inputs)) all_inputs$data_table_rows_current <- NULL
-    if("data_table_rows_selected" %in% names(all_inputs)) all_inputs$data_table_rows_selected <- NULL
-    if("data_table_cell_clicked" %in% names(all_inputs)) all_inputs$data_table_cell_clicked <- NULL
-    if("data_table_search" %in% names(all_inputs)) all_inputs$data_table_search <- NULL
     all_inputs <- all_inputs[order(names(all_inputs))]
     return(all_inputs)
   })
@@ -741,13 +800,14 @@ server <- function(input, output, session) {
   rv <- reactiveValues()
   rv[["use_cached_data"]] <- use_cached_data
   rv[["bookmark_link"]] <- ""
-  rv[["n_rows"]] <- 0
-  
+  rv[["analysis_button"]] <- ""
+
   
   
   
   get_df <- reactive({
     
+    # Revert to the original df.
     df <- original_df
     
     # Invert the response ratio, if lower values are "better" (based on user input)
@@ -913,18 +973,6 @@ server <- function(input, output, session) {
         }
       }
     }
-    output$data_table <- DT::renderDataTable(withProgress(message="Please wait...", value=0.5, 
-      expr = { DT::datatable(
-        df,
-        extensions = 'Buttons',
-        options = list(
-          dom = 'Bfrtip', 
-          buttons = c('copy', 'csv'),
-          pageLength = 250
-        )
-      )}),
-      server = TRUE
-    )
     update_filters(df)
     return(df)
   })
@@ -934,7 +982,7 @@ server <- function(input, output, session) {
   
   # This function gets the results of a meta-analysis (of the subset of data rows with values for 
   # both the effect size ("es") and its variance ("v").
-  get_results <- eventReactive(input$go, {
+  get_results <- eventReactive(c(input$go, input$meta_regression_go), ignoreInit = T, {
     withProgress(message="Analyzing data...", value=0.5, {
       data <- get_data()
       d <- subset(data, es_and_v == TRUE)
@@ -943,34 +991,76 @@ server <- function(input, output, session) {
       n_citations <- length(unique(d$citation))
       use_cached_data <- rv[["use_cached_data"]]
       cached_results <- paste(cache, "results_", digest(settings()), ".rds", sep = "")
-      if (use_cached_data == TRUE & head_object(cached_results, s3_bucket, check_region=FALSE)) {
+      if (use_cached_data == TRUE & 
+        head_object(cached_results, s3_bucket, check_region=FALSE) &
+        rv[["analysis_button"]] != "meta_regression"
+      ) {
         results <- s3readRDS(cached_results, s3_bucket, check_region=FALSE)
       } else {
         if (n_rows > 0) {
+          
+          ###############
+          # Meta-analysis
+          ###############
+          
+          # We will compare the results of the subgroup analysis with an analysis of the full dataset.
+          df <- get_df()
+          df <- subset(df, es_and_v == TRUE)
+          df_n_rows <- length(df$es_and_v)
+          df_n_publications <- length(unique(df$publication))
+          df_n_citations <- length(unique(df$citation))
+          if (df_n_rows > 1) {
+            meta_analysis <- rma.mv(yi = log_response_ratio, V = selected_v, random = ~ 1 | publication/study, data = df)
+            supergroup_results <- list(
+              effect_size = as.numeric(round(exp(meta_analysis$b), 2)),  # Effect size = response ratio
+              ci.lb = round(exp(meta_analysis$ci.lb), 2),  # Lower bound of the confidence interval
+              ci.ub = round(exp(meta_analysis$ci.ub), 2)   # Upper bound of the confidence interval
+            )
+          } else {
+            supergroup_results <- list(
+              effect_size = as.numeric(round(exp(df$log_response_ratio[1]), 2)),  # Effect size = response ratio
+              ci.lb = round(exp(df$log_response_ratio[1] - (1.96 * sqrt(df$selected_v[1]))), 2),
+              ci.ub = round(exp(df$log_response_ratio[1] + (1.96 * sqrt(df$selected_v[1]))), 2)
+            )
+          }
+          
+          ###################
+          # Subgroup analysis
+          ###################
+          
+          # If there are at least two data points in the subgroup, we do the analysis.
           if (n_rows > 1) {
             
-            # The default model (with inverse-variance weights, without relevance weights)
-            model <- rma.mv(yi = log_response_ratio, V = selected_v, random = ~ 1 | publication/study, data = d)
+            # We fit the default model (with inverse-variance weights, without relevance weights).
+            subgroup_analysis <- rma.mv(yi = log_response_ratio, V = selected_v, random = ~ 1 | publication/study, data = d)
+            
+            ###################
+            # Relevance weights
+            ###################
+            
             # M is the variance-covariance matrix from the default model. The inverse of M is the
-            # default weight matrix: weights(model, type = "matrix").
-            M <- model$M
+            # default weight matrix: weights(subgroup_analysis, type = "matrix").
+            M <- subgroup_analysis$M
             # C is a diagonal matrix of user-defined relevance weights.
             C <- diag(d$relevance_weight)
             # Here we modify the default weight matrix (solve(M)) by multiplying it by C.
             W <- sqrt(C) %*% solve(M) %*% sqrt(C)
             # Then we fit a new model with this modified weight matrix.
-            model <- rma.mv(yi = log_response_ratio, V = selected_v, W = W, random = ~ 1 | publication/study, data = d)
-
-            log_response_ratio <- model$b
-            log_response_ratio_se <- model$se
-            effect_size <- as.numeric(round(exp(model$b), 2))  # Effect size = response ratio
-            ci.lb <- round(exp(model$ci.lb), 2)                # Lower bound of the confidence interval
-            ci.ub <- round(exp(model$ci.ub), 2)                # Upper bound of the confidence interval
-            pval <- round(model$pval, 4)
-            QE <- round(model$QE)
-            QEp <- round(model$QEp, 2)
+            subgroup_analysis <- rma.mv(yi = log_response_ratio, V = selected_v, W = W, random = ~ 1 | publication/study, data = d)
+            subgroup_analysis_summary <- summary(subgroup_analysis)
+            
+            # Results of the subgroup analysis
+            log_response_ratio <- subgroup_analysis$b
+            log_response_ratio_se <- subgroup_analysis$se
+            effect_size <- as.numeric(round(exp(subgroup_analysis$b), 2))  # Effect size = response ratio
+            ci.lb <- round(exp(subgroup_analysis$ci.lb), 2)                # Lower bound of the confidence interval
+            ci.ub <- round(exp(subgroup_analysis$ci.ub), 2)                # Upper bound of the confidence interval
+            pval <- round(subgroup_analysis$pval, 4)
+            QE <- round(subgroup_analysis$QE)
+            QEp <- round(subgroup_analysis$QEp, 2)
             if (QEp == 0) QEp <- 0.0001
           } else if (n_rows == 1) {
+            subgroup_analysis_summary <- NULL
             log_response_ratio <- d$log_response_ratio[1]
             log_response_ratio_se <- sqrt(d$selected_v[1])
             effect_size <- as.numeric(round(exp(d$log_response_ratio[1]), 2))  # Effect size = response ratio
@@ -984,6 +1074,7 @@ server <- function(input, output, session) {
             QEp <- NA
           }
           if (pval == 0) pval <- 0.0001
+          # Text for the paragraph
           if (effect_size > 1) {
             direction <- "positive"
             percent <- paste(round(abs(1 - effect_size) * 100), "% higher", sep = "")
@@ -1010,12 +1101,12 @@ server <- function(input, output, session) {
           }
           if (n_rows > 1) {
             results_df <- data.frame(
-              citation = d$citation, 
-              effect_size = exp(model$yi),  # Effect size = response ratio
-              ci.lb = exp(model$yi - 1.96 * sqrt(model$vi)), 
-              ci.ub = exp(model$yi + 1.96 * sqrt(model$vi)),
-              log_response_ratio = model$yi,  # The log response ratio (not the response ratio) for the funnel plot
-              log_response_ratio_se = sqrt(model$vi)  # Standard error of the log response ratio (not the response ratio) for the funnel plot
+              citation = d$citation,
+              effect_size = exp(subgroup_analysis$yi),  # Effect size = response ratio
+              ci.lb = exp(subgroup_analysis$yi - 1.96 * sqrt(subgroup_analysis$vi)), 
+              ci.ub = exp(subgroup_analysis$yi + 1.96 * sqrt(subgroup_analysis$vi)),
+              log_response_ratio = subgroup_analysis$yi,  # The log response ratio (not the response ratio) for the funnel plot
+              log_response_ratio_se = sqrt(subgroup_analysis$vi)  # Standard error of the log response ratio (not the response ratio) for the funnel plot
             )
           } else if (n_rows == 1) {
             results_df <- data.frame(
@@ -1027,9 +1118,241 @@ server <- function(input, output, session) {
               log_response_ratio_se = sqrt(d$selected_v[1])  # Standard error of the log response ratio (not the response ratio) for the funnel plot
             )
           }
-          results <- list(effect_size = effect_size, ci.lb = ci.lb, ci.ub = ci.ub, pval = pval, QE = QE, QEp = QEp, direction = direction, percent = percent, lower_percent = lower_percent, upper_percent = upper_percent, log_response_ratio = log_response_ratio, log_response_ratio_se = log_response_ratio_se, results_df = results_df, d = d, n_publications = n_publications, n_citations = n_citations, n_rows = n_rows)
+          results <- list(subgroup_analysis_summary = subgroup_analysis_summary, effect_size = effect_size, ci.lb = ci.lb, ci.ub = ci.ub, pval = pval, QE = QE, QEp = QEp, direction = direction, percent = percent, lower_percent = lower_percent, upper_percent = upper_percent, log_response_ratio = log_response_ratio, log_response_ratio_se = log_response_ratio_se, supergroup_results = supergroup_results, results_df = results_df, d = d, n_publications = n_publications, n_citations = n_citations, n_rows = n_rows)
           s3saveRDS(results, object = cached_results, s3_bucket, check_region=FALSE)
           #rv[["use_cached_data"]] <- TRUE
+          
+          if (rv[["analysis_button"]] == "meta_regression") {
+            if (df_n_rows > 1) {
+              
+              #################
+              # Meta-regression
+              #################
+              
+              # We fit a meta-regression model using the full dataset, not the filtered dataset, using the 
+              # selected filters (if any) as moderators. 
+
+              # First, we get the full data set (not the subset, which is used for subgroup analysis,
+              # whereas the full data set is used for meta-regression) and we remove non-alphanumeric 
+              # characters from the column names, to match the moderator names.
+              encoded_df <- df
+              encoded_df <- subset(encoded_df, es_and_v == TRUE)
+              encoded_column_names <- gsub("[^[:alnum:]_]", "", colnames(encoded_df))
+              colnames(encoded_df) <- encoded_column_names
+              
+              # Replace NAs with empty strings (so that NAs will be included as an additional 
+              # factor level for categorical variables, rather than being excluded from the model).
+              encoded_df[is.na(encoded_df)] <- ""
+              
+              # Categorical variables can have multiple records in one cell (i.e. the cell is a list of
+              # records; e.g., a study that was done in two countries). Here we unlist and combine 
+              # these records (separated by " & ") so that they can be used by the model.
+              factors <- attributes_df$encoded_attribute[attributes_df$type == "factor"]
+              for (i in 1:length(factors)) {
+                encoded_df[[paste(factors[i])]] <- lapply(encoded_df[[paste(factors[i])]], function(x) paste(unlist(x), collapse = " & "))
+                encoded_df[[paste(factors[i])]] <- unlist(encoded_df[[paste(factors[i])]])
+              }
+              
+              # Second, we get the moderators (if the user has selected any filters).
+              moderators_df <- attributes_df
+              moderators_df$moderator_value <- 0
+              moderators_df$moderator_level <- NA
+              for (i in 1:length(moderators_df$attribute)) {
+                if (!is.null(input[[paste(moderators_df$encoded_attribute[i])]])) {
+                  this_input <- input[[paste(moderators_df$encoded_attribute[i])]]
+                  this_attribute <- moderators_df$encoded_attribute[i]
+                  if (moderators_df$type[i] == "factor") {
+                    moderators_df$moderator_value[i] <- 1
+                    # If the user has selected only one factor level for this moderator, use it as 
+                    # the moderator level.
+                    if (length(this_input) == 1) {
+                      moderators_df$moderator_level[i] <- paste(this_attribute, this_input, sep="")
+                    } else {
+                    # If the user has selected multiple factor levels, create a new moderator level 
+                    # that combines these two levels.
+                      moderators_df$moderator_level[i] <- paste(this_attribute, "_Selected", sep="")
+                      encoded_df[[this_attribute]][encoded_df[[this_attribute]] %in% this_input] <- "_Selected"
+                    }
+                  } else {  # if (moderators_df$type[i] == "number")
+                    # Check to see if the user has moved the sliders from their min or max values.
+                    # Only use this attribute as a moderator if they have moved the sliders.
+                    low_value <- input[[paste(moderators_df$encoded_attribute[i])]][1]
+                    high_value <- input[[paste(moderators_df$encoded_attribute[i])]][2]
+                    if (low_value != moderators_df$min[i] | high_value != moderators_df$max[i]) {
+                      this_value <- (low_value + high_value) / 2  # Use the mean value for model predictions.
+                      moderators_df$moderator_value[i] <- this_value
+                      moderators_df$moderator_level[i] <- this_attribute
+                    }
+                  }
+                }
+              }
+              moderators_df <- subset(moderators_df, moderator_value > 0)
+              moderators <- moderators_df$encoded_attribute
+
+              # Third, if there are any moderators, we create a model formula from these moderators.
+              n_moderators <- length(moderators)
+              if (n_moderators > 0) {
+                # If there is more than one moderator, we get all pairwise interactions.
+                if (n_moderators > 1) {
+                  moderator_combinations <- combn(moderators, 2)
+                  for (i in 1:dim(moderator_combinations)[2]) {
+                    this_interaction <- paste(moderator_combinations[1,i], moderator_combinations[2,i], sep = ":")
+                    if (i == 1) {
+                      moderator_interactions <- this_interaction
+                    } else {
+                      moderator_interactions <- c(paste(this_interaction), moderator_interactions)                  
+                    }
+                  }
+                  # If there is more than one moderator, we try to fit a model with all pairwise 
+                  # interactions between these moderators.
+                  mods <- paste(paste(moderators, collapse="+"), "+", paste(moderator_interactions, collapse="+"))
+                } else {
+                  # If there is only one moderator, we try to fit a model with no interactions.
+                  mods <- paste(moderators, collapse="+")
+                }
+                
+                # Format continous moderators as numeric (so that they are not treated as categorical
+                # variables, and so that NAs are excluded from the model).
+                continuous_moderators <- moderators_df$encoded_attribute[moderators_df$type == "number"]
+                for (moderator in continuous_moderators) {
+                  encoded_df[[moderator]] <- as.numeric(encoded_df[[moderator]])
+                }
+                
+                start_time <- Sys.time()
+                
+                # Fourth, we fit the meta-regression model.
+                print("Dredging...")
+                # Automated model selection
+                meta_regression_dredge <- dredge(
+                  rma.mv(log_response_ratio, selected_v, method = "ML",  # ML is needed for log-likelihood comparisons, but we will refit with REML below.
+                    mods = as.formula(paste(" ~ ", mods)),
+                    random = ~ 1 | publication/study, 
+                    data = encoded_df
+                  ),
+                  trace = 2  # Show progress bar in R console.
+                )
+                print(subset(meta_regression_dredge, delta <= 2, recalc.weights=FALSE))
+                # Select the "best" model.
+                meta_regression <- get.models(meta_regression_dredge, subset = 1, method = "REML")[[1]]
+                meta_regression_call <- meta_regression$call
+                meta_regression_summary <- summary(meta_regression)
+
+                # Fifth, we get the model predictions for the moderator levels that the user selected.
+                # The names of the moderators (including dummy variables for categorical moderators, 
+                # which are formatted as "ModeratorALevelX" (e.g., "CovercroptypeLegume") and also 
+                # including interaction terms, which are formatted as 
+                # "ModeratorAFilterX:ModeratorBFilterY" 
+                # (e.g., "CovercroptypeLegume:NitrogenfertilizedcashcropNo")).
+                names <- names(coef(meta_regression))
+                names <- names[-1]  # Delete the intercept, which will automatically be added by the predict function.
+                
+                # If there is at least one moderator in the selected model
+                if (length(names) > 0) {
+                  # Set newmods to zero (i.e. the intercept of the model). We will modify this below.
+                  newmods <- c(rep(0, length(names)))
+                  print(newmods)
+                  
+                  for (i in 1:length(moderators_df$moderator_level)) {  # For each filter that the user has selected
+                    this_filter <- moderators_df$moderator_level[i]
+                    pattern_1 <- paste(":", this_filter, "$", sep = "")
+                    pattern_2 <- paste("^", this_filter, ":", sep = "")
+                    for (j in 1:length(names)) {  # For each name
+                      this_name <- names[j]
+                      # If this filter is equal to this name
+                      if (this_filter == this_name) {
+                        # Set the value for use in predict(meta_regression, newmods = newmods)
+                        this_new_mod <- moderators_df$moderator_value[i]
+                        newmods[j] <- this_new_mod
+                      }
+                      # Else if this filter is in this name (but not equal to it, because it is an interaction)
+                      else if (grepl(pattern_1, names[j]) | grepl(pattern_2, names[j])) {
+                        other_moderators_df <- moderators_df[-i,]  # moderators_df minus the row for this filter
+                        for (k in 1:length(other_moderators_df$moderator_level)) {  # For each other filter
+                          this_other_filter <- other_moderators_df$moderator_level[k]
+                          pattern_3 <- paste(":", this_other_filter, "$", sep = "")
+                          pattern_4 <- paste("^", this_other_filter, ":", sep = "")
+                          # If one other filter is also in this name (an interaction with two of our filters)
+                          if (grepl(pattern_3, names[j]) | grepl(pattern_4, names[j])) {
+                            # Set the value for use in predict(meta_regression, newmods = newmods)
+                            this_new_mod <- moderators_df$moderator_value[i]
+                            this_other_new_mod <- other_moderators_df$moderator_value[k]
+                            newmods[j] <- this_new_mod * this_other_new_mod  # Interaction = new_mod * new_mod
+                          }
+                        }
+                      }
+                    }
+                  }
+                  print(newmods)                  
+                  # Meta-regression results with moderators
+                  meta_regression_results <- predict(meta_regression, newmods = newmods)
+                # Else if there is not at least one moderator in the selected model
+                } else {
+                  # Meta-regression results without moderators
+                  meta_regression_results <- predict(meta_regression)
+                }
+                print(meta_regression_results)
+                
+                # Meta-regression results
+                log_response_ratio <- meta_regression_results$pred
+                log_response_ratio_se <- meta_regression_results$se
+                zval <- abs(log_response_ratio / log_response_ratio_se)
+                pval <- 2 * (1 - pnorm(zval))
+                pval <- round(pval, 4)
+                if (pval == 0) pval <- 0.0001
+                effect_size <- round(exp(meta_regression_results$pred), 2)
+                ci.lb <- round(exp(meta_regression_results$ci.lb), 2)
+                ci.ub <- round(exp(meta_regression_results$ci.ub), 2)
+                QE <- round(meta_regression$QE)
+                QEp <- round(meta_regression$QEp, 2)
+                if (QEp == 0) QEp <- 0.0001
+                # Text for the paragraph
+                if (effect_size > 1) {
+                  direction <- "positive"
+                  percent <- paste(round(abs(1 - effect_size) * 100), "% higher", sep = "")
+                } else if (effect_size < 1) {
+                  direction <- "negative"
+                  percent <- paste(round(abs(1 - effect_size) * 100), "% lower", sep = "")
+                } else {
+                  direction <- "neutral"
+                  percent <- "0% different"
+                }
+                if (ci.lb < 1) {
+                  lower_percent <- paste(round(abs(1 - ci.lb) * 100), "% lower", sep ="")
+                } else if (ci.lb > 1) {
+                  lower_percent <- paste(round(abs(1 - ci.lb) * 100), "% higher", sep ="")
+                } else {
+                  lower_percent <- "0% different"
+                }
+                if (ci.ub < 1) {
+                  upper_percent <- paste(round(abs(1 - ci.ub) * 100), "% lower", sep ="")
+                } else if (ci.ub > 1) {
+                  upper_percent <- paste(round(abs(1 - ci.ub) * 100), "% higher", sep ="")
+                } else {
+                  upper_percent <- "0% different"
+                }
+                
+                # Which moderators were included in the model?
+                moderators_df$mod <- NA
+                meta_regression_formula <- as.character(meta_regression$formula.mods[2])
+                for(i in 1:length(moderators)) {
+                  pattern <- paste("\\b", moderators[i], "\\b", sep = "")
+                  moderators_df$mod[i] <- grepl(pattern, meta_regression_formula)
+                }
+                
+                # Save the results.
+                meta_regression_results <- list(meta_regression_summary = meta_regression_summary, meta_regression_call = meta_regression_call, moderators_df = moderators_df, effect_size = effect_size, ci.lb = ci.lb, ci.ub = ci.ub, pval = pval, QE = QE, QEp = QEp, direction = direction, percent = percent, lower_percent = lower_percent, upper_percent = upper_percent, n_publications = df_n_publications, n_citations = df_n_citations, n_rows = df_n_rows)
+                results$meta_regression_results <- meta_regression_results
+
+                finish_time <- Sys.time()
+                print(finish_time - start_time)
+                
+              } else {  # if (n_moderators == 0)
+                # No filters selected. Please select one or more filters.
+              }
+            } else {  # if (n_rows <= 1)
+              # Not enough data. Please use fewer filters.
+            }
+          }  # End of meta-regression
         } else {  # if (n_rows == 0)
           results <- NA
         }
@@ -1104,12 +1427,12 @@ server <- function(input, output, session) {
           location <- unique(di$Location)
           methods_text <- unique(unlist(di$Methods))
           if (n_rows > 1) {
-            model <- rma.mv(yi = log_response_ratio, V = selected_v, random = ~ 1 | study, data = di)
-            effect_size <- as.numeric(round(exp(model$b), 2))  # Response ratio
-            ci.lb <- round(exp(model$ci.lb), 2)                # Lower bound of the confidence interval
-            ci.ub <- round(exp(model$ci.ub), 2)                # Upper bound of the confidence interval
-            log_response_ratio <- round(model$b, 2)            # The log response ratio (not the response ratio) for the funnel plot
-            log_response_ratio_se <- round(model$se, 2)        # Standard error of the log response ratio (not the response ratio) for the funnel plot
+            subgroup_analysis <- rma.mv(yi = log_response_ratio, V = selected_v, random = ~ 1 | study, data = di)
+            effect_size <- as.numeric(round(exp(subgroup_analysis$b), 2))  # Response ratio
+            ci.lb <- round(exp(subgroup_analysis$ci.lb), 2)                # Lower bound of the confidence interval
+            ci.ub <- round(exp(subgroup_analysis$ci.ub), 2)                # Upper bound of the confidence interval
+            log_response_ratio <- round(subgroup_analysis$b, 2)            # The log response ratio (not the response ratio) for the funnel plot
+            log_response_ratio_se <- round(subgroup_analysis$se, 2)        # Standard error of the log response ratio (not the response ratio) for the funnel plot
           } else if (n_rows == 1) {
             effect_size <- as.numeric(round(exp(di$log_response_ratio[1]), 2))
             ci.lb <- round(exp(di$log_response_ratio[1] - (1.96 * sqrt(di$selected_v[1]))), 2)
@@ -1158,10 +1481,10 @@ server <- function(input, output, session) {
             sep = ""), " study ", if (!is.na(location)) location else if(!is.null(country)) 
             paste("in <span class='bold'>", country, "</span>"), " (", if (this_citation != "") 
             this_citation else "[citation not available]", ") this outcome was <span 
-            class='bold'>", percent, "</span> with this intervention than it was without this 
-            intervention (between ", lower_percent, " and ", upper_percent, ", based on the 95% 
-            confidence interval). <span class='bold'> Methods: </span>", if (methods_text != "") 
-            methods_text else paste("[METHODS NA]"), 
+            class='bold'>", percent, " with this intervention</span> than it was without it (between ", 
+            lower_percent, " and ", upper_percent, ", based on the 95% confidence interval). <span 
+            class='bold'> Methods: </span>", if (methods_text != "") methods_text else 
+            paste("[METHODS NA]"), 
             sep = ""
           )
           this_paragraph <- paste(this_paragraph_header, this_paragraph, "<br /><br /><hr /><br />", sep = "")
@@ -1178,6 +1501,10 @@ server <- function(input, output, session) {
   
   
   
+
+
+
+
   output$paragraph <- renderUI({
     results <- get_results()
     if (!is.na(results)) {
@@ -1195,27 +1522,21 @@ server <- function(input, output, session) {
       lower_percent <- results$lower_percent
       upper_percent <- results$upper_percent
       HTML(paste(
-        "This intervention had a <span class='red'>", direction, " effect</span> on this outcome. 
-        This outcome was <span class='red'>", percent, "</span> with this intervention than it was 
-        without this intervention (response ratio = ", effect_size, "), based on the selected 
-        data. A &quot;", direction, "&quot; effect could be either &quot;good&quot; or 
-        &quot;bad&quot; (please see the &quot;Value judgements&quot; tab).
+        "For your data, this outcome was <span class='bold'>", percent, " with this intervention
+        </span> than it was without it (response ratio = ", effect_size, "). This effect was ", 
+        if (pval >= 0.05) "<span class='red bold'>not " else "<span class='bold'>", "statistically 
+        significant (P = ", format(pval), ")</span>. This outcome could have been <span class='bold'>
+        between ", lower_percent, " and ", upper_percent, "</span> with this intervention than it 
+        would have been without it (", ci.lb, " &#8804; response ratio &#8804; ", ci.ub, " in the 95% 
+        confidence interval). Please also see the &quot;Value judgements&quot; tab. 
         <br /><br />
-        This effect was <span class='red'>", if (pval >= 0.05) "not ", "statistically significant 
-        (P = ", format(pval), ")</span>. Based on the 95% confidence interval for this effect, 
-        this outcome could have been <span class='red'>between ", lower_percent, " and ", 
-        upper_percent, "</span> with this intervention than it would have been without it (", 
-        ci.lb, " &#8804; response ratio &#8804; ", ci.ub, ").
-        <br />
-        <br /> 
-        This analysis included <span class='red'>", n_rows, " data point", if (n_rows > 1) "s", 
-        " from ", n_citations, if (n_citations > 1) " studies" else " study", " in ", 
-        n_publications, " publication", if (n_publications > 1) "s", "</span> (please see the 
-        &quot;Data&quot; tab). ", 
+        This subgroup analysis included <span class='bold'>", n_rows, " data point", if (n_rows > 1) 
+        "s", " from ", n_citations, if (n_citations > 1) " studies" else " study", " in ", 
+        n_publications, " publication", if (n_publications > 1) "s", ". </span>",
         if (n_rows > 1) { 
           paste(
             "There was ", if (QEp >= 0.05) "not ", "significant heterogeneity between these data 
-            points (Q = ", QE, ", P = ", format(QEp), ").", sep = ""
+            points (Q = ", QE, ", P = ", format(QEp), "). ", sep = ""
           )
         }, 
         "<span class='hidden' id='effect_size'>", effect_size, "</span>", 
@@ -1229,25 +1550,70 @@ server <- function(input, output, session) {
         sep = ""
       ))
     } else {  # if (is.na(results))
-      HTML("<span class='red'>No data</span>")
+      HTML("<span class='red'>No data. Please use fewer filters.</span>")
     }
   })
   
   
   
-  
-  get_height <- function() {
-    reactive({
-      n_rows <- rv[["n_rows"]]
-      h <- (n_rows + 4) * 36
-      return(h)
-    })
-  }
-  
-  
-  
-  
-  output$forest_plot <- renderPlot({
+  output$meta_regression_paragraph <- renderUI({
+    results <- get_results()
+    if (!is.na(results)) {
+      if (!is.null(results$meta_regression_results)) {
+        results <- results$meta_regression_results
+        n_rows <- results$n_rows
+        n_citations <- results$n_citations
+        n_publications <- results$n_publications
+        effect_size <- results$effect_size
+        ci.lb <- results$ci.lb
+        ci.ub <- results$ci.ub
+        pval <- results$pval
+        QE <- results$QE
+        QEp <- results$QEp
+        direction <- results$direction
+        percent <- results$percent
+        lower_percent <- results$lower_percent
+        upper_percent <- results$upper_percent
+        moderators_df <- results$moderators_df
+        moderators_text <- "<br />"
+        for (i in 1:length(moderators_df$mod)) {
+          if (moderators_df$mod[i] != TRUE) {
+            this_text <- paste("<span class='bold red'>Warning: &quot;", moderators_df$attribute[i], 
+              "&quot; did not have a significant effect on this outcome. You could consider removing 
+              this filter from your subgroup analysis.</span><br /><br />", sep = "")
+            moderators_text <- paste(moderators_text, this_text)
+          }
+        }
+        HTML(paste(
+          "For your data, this outcome was <span class='bold'>", percent, " with this intervention
+          </span> than it was without it (response ratio = ", effect_size, "). This effect was ", 
+          if (pval >= 0.05) "<span class='red bold'>not " else "<span class='bold'>", "statistically 
+          significant (P = ", format(pval), ")</span>. This outcome could have been <span class='bold'>
+          between ", lower_percent, " and ", upper_percent, "</span> with this intervention than it 
+          would have been without it (", ci.lb, " &#8804; response ratio &#8804; ", ci.ub, " in the 95% 
+          confidence interval).
+          <br /><br />
+          This meta-regression included <span class='bold'>", n_rows, " data point", if (n_rows > 1) 
+            "s", " from ", n_citations, if (n_citations > 1) " studies" else " study", " in ", 
+          n_publications, " publication", if (n_publications > 1) "s", ". </span>",
+          if (n_rows > 1) { 
+            paste(
+              "There was ", if (QEp >= 0.05) "not ", "significant heterogeneity between these data 
+              points (Q = ", QE, ", P = ", format(QEp), "). ", sep = ""
+            )
+          },
+          paste("<br /><br />"),
+          moderators_text,
+          sep = ""
+        ))
+      }
+    }
+  })
+
+
+
+
+  output$forest_plot <- renderImage({
     results <- get_results()
     results_by_study <- get_results_by_study()
     if (!is.na(results)) {
@@ -1262,31 +1628,135 @@ server <- function(input, output, session) {
         paragraph = "",
         encoded_citation = "",
         shape = 18,  # Diamond
-        size = 24
+        size = 12
       )
       if (!is.na(results_by_study)) {
         results_by_study_df <- results_by_study
         results_by_study_df$shape <- 16  # Circle
-        results_by_study_df$size <- 8
+        results_by_study_df$size <- 4
         results_by_study_df <- rbind(results_by_study_df, results_df)
         results_by_study_df$citation <- reorder(results_by_study_df$citation, c(length(results_by_study_df$citation):1))
         n_rows <- length(results_by_study_df$effect_size)
-        rv[["n_rows"]] <- n_rows  # For get_height()
         p <- ggplot(data=results_by_study_df, aes(x=citation, y=effect_size, ymin=ci.lb, ymax=ci.ub)) +
           geom_pointrange(shape=results_by_study_df$shape, fatten=results_by_study_df$size) + 
           geom_hline(yintercept=1, lty=2) +
           coord_flip() +
           xlab("Study") + ylab("Response ratio") +
-          theme_bw(base_size=16)
-        p
+          theme_bw(base_size = 10) +
+          theme(
+            plot.background = element_rect(fill = "#f5f5f5", color = "#e3e3e3", size = 0.5), 
+            text = element_text(family = "Noto Serif")
+          )
+        outfile <- tempfile(fileext='.svg')
+        height <- (length(results_by_study_df$citation) + 2) / 4
+        width <- 6
+        ggsave(p, filename = outfile, height = height, width = width)
+        list(src = normalizePath(outfile), contentType = 'image/svg+xml')
       }
     }
-  }, height=get_height())
+  }, deleteFile = TRUE)
 
   
   
   
-  output$funnel_plot <- renderPlot({
+  output$subgroup_analysis_plot <- renderImage({
+    results <- get_results()
+    if (!is.na(results)) {
+      subgroup_df <- data.frame(
+        citation = "Your data",
+        effect_size = results$effect_size,
+        ci.lb = results$ci.lb,
+        ci.ub = results$ci.ub,
+        shape = 18,  # Diamond
+        size = 12
+      )
+      supergroup_df <- data.frame(
+        citation = "All data",
+        effect_size = results$supergroup_results$effect_size,
+        ci.lb = results$supergroup_results$ci.lb,
+        ci.ub = results$supergroup_results$ci.ub,
+        shape = 18,  # Diamond
+        size = 12
+      )
+      results_df <- rbind(subgroup_df, supergroup_df)
+      p <- ggplot(data=results_df, aes(x=citation, y=effect_size, ymin=ci.lb, ymax=ci.ub)) +
+        geom_pointrange(shape=results_df$shape, fatten=results_df$size) + 
+        geom_hline(yintercept=1, lty=2) +
+        ylab("Response ratio") +
+        coord_flip() +
+        theme_bw(base_size = 9) +
+        theme(
+          plot.background = element_rect(fill = "#f5f5f5", color = "#e3e3e3", size = 0.5), 
+          axis.title.x=element_text(size = 9),
+          axis.title.y=element_blank(),
+          axis.text=element_text(size = 9),
+          text = element_text(family = "Noto Serif"),
+          plot.margin = unit(c(0.125,0.125,0.125,0.125), "in")
+        )
+      outfile <- tempfile(fileext='.svg')
+      ggsave(p, filename = outfile, width = 3, height = 2)
+      list(src = normalizePath(outfile), contentType = 'image/svg+xml')
+    } else {
+      outfile <- tempfile(fileext='.svg')
+      list(src = normalizePath(outfile), contentType = 'image/svg+xml')
+    }
+  }, deleteFile = TRUE)
+  
+  
+  
+  
+  output$meta_regression_plot <- renderImage({
+    results <- get_results()
+    if (!is.na(results)) {
+      if (!is.null(results$meta_regression_results)) {
+        subgroup_analysis_df <- data.frame(
+          citation = "Subgroup analysis",
+          effect_size = results$effect_size,
+          ci.lb = results$ci.lb,
+          ci.ub = results$ci.ub,
+          shape = 18,  # Diamond
+          size = 12
+        )
+        meta_regression_df <- data.frame(
+          citation = "Meta-regression",
+          effect_size = results$meta_regression_results$effect_size,
+          ci.lb = results$meta_regression_results$ci.lb,
+          ci.ub = results$meta_regression_results$ci.ub,
+          shape = 18,  # Diamond
+          size = 12
+        )
+        results_df <- rbind(meta_regression_df, subgroup_analysis_df)
+        p <- ggplot(data=results_df, aes(x=citation, y=effect_size, ymin=ci.lb, ymax=ci.ub)) +
+          geom_pointrange(shape=results_df$shape, fatten=results_df$size) + 
+          geom_hline(yintercept=1, lty=2) +
+          ylab("Response ratio") +
+          coord_flip() +
+          theme_bw(base_size = 9) +
+          theme(
+            plot.background = element_rect(fill = "#f5f5f5", color = "#e3e3e3", size = 0.5), 
+            axis.title.x=element_text(size = 9),
+            axis.title.y=element_blank(),
+            axis.text=element_text(size = 9),
+            text = element_text(family = "Noto Serif"),
+            plot.margin = unit(c(0.125,0.125,0.125,0.125), "in")
+          )
+        outfile <- tempfile(fileext='.svg')
+        ggsave(p, filename = outfile, width = 3, height = 2)
+        list(src = normalizePath(outfile), contentType = 'image/svg+xml')
+      } else {
+        outfile <- tempfile(fileext='.svg')
+        list(src = normalizePath(outfile), contentType = 'image/svg+xml')
+      }
+    } else {
+      outfile <- tempfile(fileext='.svg')
+      list(src = normalizePath(outfile), contentType = 'image/svg+xml')
+    }
+  }, deleteFile = TRUE)
+  
+  
+  
+  
+  output$funnel_plot <- renderImage({
     results <- get_results()
     if (!is.na(results)) {
       results_df <- results$results_df
@@ -1307,11 +1777,17 @@ server <- function(input, output, session) {
         geom_line(aes(x = se_seq, y = log_response_ratio), lty=2, data = ci_df) +
         scale_x_reverse() + 
         coord_flip() +
-        theme_bw(base_size=16)
-      p
+        theme_bw(base_size = 10) +
+        theme(
+          plot.background = element_rect(fill = "#f5f5f5", color = "#e3e3e3", size = 0.5), 
+          text = element_text(family = "Noto Serif")
+        )
+      outfile <- tempfile(fileext='.svg')
+      ggsave(p, filename = outfile, height = 4, width = 6)
+      list(src = normalizePath(outfile), contentType = 'image/svg+xml')
     }
-  })
-
+  }, deleteFile = TRUE)
+  
   
   
   
@@ -1333,6 +1809,50 @@ server <- function(input, output, session) {
   outputOptions(output, "summaries", suspendWhenHidden = FALSE)
 
 
+  
+    
+  output$subgroup_analysis_summary <- renderPrint({
+    results <- get_results()
+    if (!is.na(results)) {
+      results$subgroup_analysis_summary
+    } else {
+    }
+  })
+  outputOptions(output, "subgroup_analysis_summary", suspendWhenHidden = FALSE)
+  
+  
+  
+
+  
+  
+  output$meta_regression_call <- renderPrint({
+    results <- get_results()
+    if (!is.na(results)) {
+      if (!is.null(results$meta_regression_results)) {
+        results$meta_regression_results$meta_regression_call
+      } else {
+      }
+    } else {
+    }
+  })
+  outputOptions(output, "meta_regression_call", suspendWhenHidden = FALSE)
+
+  
+  
+    
+  output$meta_regression_summary <- renderPrint({
+    results <- get_results()
+    if (!is.na(results)) {
+      if (!is.null(results$meta_regression_results)) {
+        results$meta_regression_results$meta_regression_summary
+      } else {
+      }
+    } else {
+    }
+  })
+  outputOptions(output, "meta_regression_summary", suspendWhenHidden = FALSE)
+  
+  
 
 
   output$refresh_button <- renderUI({
@@ -1342,9 +1862,22 @@ server <- function(input, output, session) {
   
   
   
+  observeEvent(input$meta_regression_go, {
+    updateActionButton(session, "meta_regression_go", label = "Update your analysis", icon = NULL)
+  }, autoDestroy=TRUE)
+  observeEvent(input$meta_regression_go, {
+    rv[["analysis_button"]] <- "meta_regression"
+  })
+  
+  
+  
+  
   observeEvent(input$go, {
     updateActionButton(session, "go", label = "Update your analysis", icon = NULL)
   }, autoDestroy=TRUE)
+  observeEvent(input$go, {
+    rv[["analysis_button"]] <- "subgroup_analysis"
+  })
   
   
   
@@ -1354,13 +1887,35 @@ server <- function(input, output, session) {
     s3saveRDS(settings(), object = bookmark_object, s3_bucket, check_region=FALSE)
     rv[["bookmark_url"]] <- paste(protocol, "//", hostname, if (port != "") ":", port, pathname, "?bookmark=", digest(settings()), "&", api_query_string, sep="")
     output$bookmark_link <- renderUI(HTML(paste(
+      "<br />",
       "Save this link to reload your analysis later: <a id='shiny_bookmark' href='", 
       rv[["bookmark_url"]], 
       "'>",
       rv[["bookmark_url"]], 
-      "</a>"
+      "</a>",
+      "<br />"
     )))
   })
+  
+  
+  
+  
+  output$downloadData <- downloadHandler(
+    filename = function() {
+      paste("Metadataset.csv")
+    },
+    content = function(file) {
+      df <- get_data()
+      #colnames(df) <- gsub("[^[:alnum:]_]", ".", colnames(df))
+      df[is.na(df)] <- ""
+      df <- apply(df, 2, function(x) {
+        if (is.list(x)) {
+          sapply(x, function(y) paste(unlist(y), collapse = ","))
+        }
+      })
+      write.csv(df, file)
+    }
+  )
   
   
   
@@ -1371,6 +1926,7 @@ server <- function(input, output, session) {
 
   #output$debug1 <- renderPrint(digest(api_query_string))     # Hash for data folder on S3
   #output$debug2 <- renderPrint(digest(settings()))  # Hash for results and settings on S3
+  #output$debug3 <- renderPrint(settings())  # Settings (to be hashed)
   
   #output$debug1 <- renderPrint(df$Country)
   #inp <- lapply(df$Country, function(x) gsub("[^[:alnum:]]", "", x)) 
