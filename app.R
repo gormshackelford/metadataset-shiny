@@ -8,6 +8,7 @@ library(aws.s3)
 library(httr)
 library(jsonlite)
 library(nlme)
+library(plyr)
 library(ggplot2)
 library(showtext)
 library(svglite)
@@ -107,8 +108,11 @@ ui <- function(request) { fluidPage(
             uiOutput('outcome'),
             HTML('<br />'),
             HTML('<h1>Data</h1>'),
-            downloadButton("downloadData", "Download CSV"),
+            HTML('You can also download the data and use it in your own analyses. If you have filtered 
+              the data, this will only download the data that you have filtered.'),
             HTML('<br />'),
+            HTML('<br />'),
+            downloadButton("downloadData", "Download CSV"),
             HTML('<br />'),
             HTML('<br />'),
           HTML('</div>'),
@@ -117,7 +121,7 @@ ui <- function(request) { fluidPage(
             HTML('Subgroup analysis uses only the data that you have filtered.'),
             HTML('<br />'),
             HTML('<br />'),
-            actionButton("go", "Subgroup analysis"),
+            actionButton("go", "Start your analysis"),
             actionButton("make_bookmark", "Bookmark your analysis"),
             HTML('<br />'),
             uiOutput('bookmark_link'),
@@ -131,10 +135,10 @@ ui <- function(request) { fluidPage(
             HTML('Meta-regression uses all of the data, not only the data that you have filtered 
               (unlike subgroup analysis). In meta-regression, the results for your data will differ 
               from the overall results only if at least one of your filters has a statistically 
-              significant effect. Meta-regression is potentially more powerful than subgroup analysis, 
-              but it is also much slower. Please finish your subgroup analysis first, and then do your 
-              meta-regression second, using the same filters that you used for your subgroup 
-              analysis.'),
+              significant effect on the results. Meta-regression is potentially more powerful than 
+              subgroup analysis, but it may also be much slower. Please finish your subgroup analysis 
+              first, and then do your meta-regression second, using the same filters that you used 
+              for your subgroup analysis.'),
             HTML('<br />'),
             HTML('<br />'),
             actionButton("meta_regression_go", "Meta regression"),
@@ -174,16 +178,31 @@ ui <- function(request) { fluidPage(
     ),
     tabPanel("Model summaries",
         h1('Model summaries'),
-        HTML('Please note that these summaries are in units of <span class="bold">log response ratio</span>, 
-          which are back-transformed into units of <span class="bold">response ratio</span> when 
-          reported on the &quot;Dynamic meta-analysis&quot; tab.'),
+        HTML('We use the <span class="bold">metafor</span> package in R to model the data. Please 
+          note that the units in these model summaries are <span class="bold">log response ratios</span>, 
+          which are back-transformed into <span class="bold">response ratios</span> on the 
+          &quot;Dynamic meta-analysis&quot; tab (in R, response_ratio = exp(log_response_ratio).'),
         HTML('<br />'),
         h1('(1) Subgroup analysis'),
+        HTML('rma.mv(log_response_ratio, selected_v, random = ~ 1 | publication/study)'),
+        HTML('<br />'),
+        HTML('<br />'),
         withSpinner(verbatimTextOutput('subgroup_analysis_summary')),
         HTML('<br />'),
         h1('(2) Meta-regression'),
-        withSpinner(verbatimTextOutput('meta_regression_call')),
-        withSpinner(verbatimTextOutput('meta_regression_summary'))
+        HTML('We use the <span class="bold">MuMIn</span> package in R to fit <span class="bold">
+          metafor</span> models with all combinations of the variables that you selected and their 
+          two-way interactions as moderators. We then select the &quot;best&quot; model (with the 
+          lowest AIC) and get the model predictions for the moderator levels that you selected.'),
+        HTML('<br />'),
+        HTML('<br />'),
+        withSpinner(textOutput('meta_regression_formula')),
+        HTML('<br />'),
+        withSpinner(verbatimTextOutput('meta_regression_summary')),
+        HTML('<br />'),
+        withSpinner(textOutput('meta_regression_predict')),
+        HTML('<br />'),
+        withSpinner(verbatimTextOutput('meta_regression_prediction'))
       ),
     tabPanel("Study summaries and weights",
       mainPanel(
@@ -305,7 +324,7 @@ server <- function(input, output, session) {
     
     # Uncomment the following for data on cover crops.
     #publication <- 22270
-    #outcome <- "4"  # Crop yield
+    outcome <- "4"  # Crop yield
     #outcome <- "20"  # Soil
     #outcome <- "198"  # Soil organic matter
     #outcome <- "46"   # Soil microbial biomass
@@ -783,7 +802,7 @@ server <- function(input, output, session) {
   
   
   
-  
+  # A list of user inputs, which is used to identify caches and bookmarks.
   settings <- reactive({
     all_inputs <- reactiveValuesToList(input)
     if("go" %in% names(all_inputs)) all_inputs$go <- NULL
@@ -798,10 +817,25 @@ server <- function(input, output, session) {
   
   # Reactive values
   rv <- reactiveValues()
-  rv[["use_cached_data"]] <- use_cached_data
+  rv[["analysis_button"]] <- "subgroup_analysis"
   rv[["bookmark_link"]] <- ""
-  rv[["analysis_button"]] <- ""
-
+  rv[["use_cached_data"]] <- use_cached_data
+  
+  
+  
+  
+  # Update the actions buttons when they are clicked (and also update rv[["analysis_button"]], which
+  # is used in the get_results() function to switch between subgroup analysis and meta-regression.
+  observeEvent(input$go, {
+    updateActionButton(session, "go", label = "Update your analysis", icon = NULL)
+  }, autoDestroy=TRUE)
+  observeEvent(input$go, {
+    rv[["analysis_button"]] <- "subgroup_analysis"
+  })
+  observeEvent(input$meta_regression_go, {
+    rv[["analysis_button"]] <- "meta_regression"
+  })
+  
   
   
   
@@ -983,18 +1017,15 @@ server <- function(input, output, session) {
   # This function gets the results of a meta-analysis (of the subset of data rows with values for 
   # both the effect size ("es") and its variance ("v").
   get_results <- eventReactive(c(input$go, input$meta_regression_go), ignoreInit = T, {
-    withProgress(message="Analyzing data...", value=0.5, {
+    withProgress(message="Analysing data...", value=0.5, {
       data <- get_data()
       d <- subset(data, es_and_v == TRUE)
       n_rows <- length(d$es_and_v)
       n_publications <- length(unique(d$publication))
       n_citations <- length(unique(d$citation))
       use_cached_data <- rv[["use_cached_data"]]
-      cached_results <- paste(cache, "results_", digest(settings()), ".rds", sep = "")
-      if (use_cached_data == TRUE & 
-        head_object(cached_results, s3_bucket, check_region=FALSE) &
-        rv[["analysis_button"]] != "meta_regression"
-      ) {
+      cached_results <- paste(cache, "results_", digest(c(settings(), rv[["analysis_button"]])), ".rds", sep = "")
+      if (use_cached_data == TRUE & head_object(cached_results, s3_bucket, check_region=FALSE)) {
         results <- s3readRDS(cached_results, s3_bucket, check_region=FALSE)
       } else {
         if (n_rows > 0) {
@@ -1119,8 +1150,6 @@ server <- function(input, output, session) {
             )
           }
           results <- list(subgroup_analysis_summary = subgroup_analysis_summary, effect_size = effect_size, ci.lb = ci.lb, ci.ub = ci.ub, pval = pval, QE = QE, QEp = QEp, direction = direction, percent = percent, lower_percent = lower_percent, upper_percent = upper_percent, log_response_ratio = log_response_ratio, log_response_ratio_se = log_response_ratio_se, supergroup_results = supergroup_results, results_df = results_df, d = d, n_publications = n_publications, n_citations = n_citations, n_rows = n_rows)
-          s3saveRDS(results, object = cached_results, s3_bucket, check_region=FALSE)
-          #rv[["use_cached_data"]] <- TRUE
           
           if (rv[["analysis_button"]] == "meta_regression") {
             if (df_n_rows > 1) {
@@ -1136,7 +1165,6 @@ server <- function(input, output, session) {
               # whereas the full data set is used for meta-regression) and we remove non-alphanumeric 
               # characters from the column names, to match the moderator names.
               encoded_df <- df
-              encoded_df <- subset(encoded_df, es_and_v == TRUE)
               encoded_column_names <- gsub("[^[:alnum:]_]", "", colnames(encoded_df))
               colnames(encoded_df) <- encoded_column_names
               
@@ -1146,11 +1174,17 @@ server <- function(input, output, session) {
               
               # Categorical variables can have multiple records in one cell (i.e. the cell is a list of
               # records; e.g., a study that was done in two countries). Here we unlist and combine 
-              # these records (separated by " & ") so that they can be used by the model.
+              # these records (separated by ",") so that they can be used by the model.
               factors <- attributes_df$encoded_attribute[attributes_df$type == "factor"]
               for (i in 1:length(factors)) {
-                encoded_df[[paste(factors[i])]] <- lapply(encoded_df[[paste(factors[i])]], function(x) paste(unlist(x), collapse = " & "))
-                encoded_df[[paste(factors[i])]] <- unlist(encoded_df[[paste(factors[i])]])
+                this_factor <- factors[i]
+                # Sort the records alphabetically.
+                encoded_df[[this_factor]] <- lapply(encoded_df[[this_factor]], sort)
+                # Paste and unlist.
+                encoded_df[[this_factor]] <- lapply(encoded_df[[this_factor]], function(x) paste(unlist(x), collapse = ","))
+                encoded_df[[this_factor]] <- unlist(encoded_df[[this_factor]])
+                # Refactor.
+                encoded_df[[this_factor]] <- as.factor(encoded_df[[this_factor]])
               }
               
               # Second, we get the moderators (if the user has selected any filters).
@@ -1210,6 +1244,7 @@ server <- function(input, output, session) {
                   # If there is only one moderator, we try to fit a model with no interactions.
                   mods <- paste(moderators, collapse="+")
                 }
+                print(mods)
                 
                 # Format continous moderators as numeric (so that they are not treated as categorical
                 # variables, and so that NAs are excluded from the model).
@@ -1223,6 +1258,7 @@ server <- function(input, output, session) {
                 # Fourth, we fit the meta-regression model.
                 print("Dredging...")
                 # Automated model selection
+                set.seed(42)
                 meta_regression_dredge <- dredge(
                   rma.mv(log_response_ratio, selected_v, method = "ML",  # ML is needed for log-likelihood comparisons, but we will refit with REML below.
                     mods = as.formula(paste(" ~ ", mods)),
@@ -1233,8 +1269,8 @@ server <- function(input, output, session) {
                 )
                 print(subset(meta_regression_dredge, delta <= 2, recalc.weights=FALSE))
                 # Select the "best" model.
+                set.seed(42)
                 meta_regression <- get.models(meta_regression_dredge, subset = 1, method = "REML")[[1]]
-                meta_regression_call <- meta_regression$call
                 meta_regression_summary <- summary(meta_regression)
 
                 # Fifth, we get the model predictions for the moderator levels that the user selected.
@@ -1289,6 +1325,7 @@ server <- function(input, output, session) {
                 } else {
                   # Meta-regression results without moderators
                   meta_regression_results <- predict(meta_regression)
+                  newmods <- ""
                 }
                 print(meta_regression_results)
                 
@@ -1333,14 +1370,25 @@ server <- function(input, output, session) {
                 
                 # Which moderators were included in the model?
                 moderators_df$mod <- NA
-                meta_regression_formula <- as.character(meta_regression$formula.mods[2])
+                meta_regression_formula <- as.character(meta_regression$formula.mods)[2]
                 for(i in 1:length(moderators)) {
                   pattern <- paste("\\b", moderators[i], "\\b", sep = "")
                   moderators_df$mod[i] <- grepl(pattern, meta_regression_formula)
                 }
                 
+                # Create text for output to the "Model summaries" tab.
+                # If any moderators were included
+                if (TRUE %in% moderators_df$mod) {  
+                  meta_regression_formula <- paste('rma.mv(log_response_ratio, selected_v, mods = ~ ', meta_regression_formula, ', random = ~ 1 | publication/study)', sep = "")
+                  meta_regression_predict <- paste('predict(model, newmods = c(', paste(newmods, collapse = ","), '))', sep = "")
+                # Else if no moderators were included in the model
+                } else {
+                  meta_regression_formula <- paste('rma.mv(log_response_ratio, selected_v, random = ~ 1 | publication/study)', sep = "")
+                  meta_regression_predict <- paste('predict(model)', sep = "")
+                }
+
                 # Save the results.
-                meta_regression_results <- list(meta_regression_summary = meta_regression_summary, meta_regression_call = meta_regression_call, moderators_df = moderators_df, effect_size = effect_size, ci.lb = ci.lb, ci.ub = ci.ub, pval = pval, QE = QE, QEp = QEp, direction = direction, percent = percent, lower_percent = lower_percent, upper_percent = upper_percent, n_publications = df_n_publications, n_citations = df_n_citations, n_rows = df_n_rows)
+                meta_regression_results <- list(meta_regression_summary = meta_regression_summary, meta_regression_formula = meta_regression_formula, meta_regression_results = meta_regression_results, meta_regression_predict = meta_regression_predict, moderators_df = moderators_df, effect_size = effect_size, ci.lb = ci.lb, ci.ub = ci.ub, pval = pval, QE = QE, QEp = QEp, direction = direction, percent = percent, lower_percent = lower_percent, upper_percent = upper_percent, n_publications = df_n_publications, n_citations = df_n_citations, n_rows = df_n_rows)
                 results$meta_regression_results <- meta_regression_results
 
                 finish_time <- Sys.time()
@@ -1353,6 +1401,8 @@ server <- function(input, output, session) {
               # Not enough data. Please use fewer filters.
             }
           }  # End of meta-regression
+          # Save the results to the cache.
+          s3saveRDS(results, object = cached_results, s3_bucket, check_region=FALSE)
         } else {  # if (n_rows == 0)
           results <- NA
         }
@@ -1822,39 +1872,66 @@ server <- function(input, output, session) {
   
   
   
-
   
-  
-  output$meta_regression_call <- renderPrint({
+  output$meta_regression_formula <- renderPrint({
     results <- get_results()
     if (!is.na(results)) {
       if (!is.null(results$meta_regression_results)) {
-        results$meta_regression_results$meta_regression_call
+        cat(results$meta_regression_results$meta_regression_formula)
       } else {
+        cat()  # Return no output.
       }
     } else {
+      cat()  # Return no output.
     }
   })
-  outputOptions(output, "meta_regression_call", suspendWhenHidden = FALSE)
+  outputOptions(output, "meta_regression_formula", suspendWhenHidden = FALSE)
 
-  
-  
-    
   output$meta_regression_summary <- renderPrint({
     results <- get_results()
     if (!is.na(results)) {
       if (!is.null(results$meta_regression_results)) {
         results$meta_regression_results$meta_regression_summary
       } else {
+        cat()
       }
     } else {
+      cat()
     }
   })
   outputOptions(output, "meta_regression_summary", suspendWhenHidden = FALSE)
   
+  output$meta_regression_predict <- renderPrint({
+    results <- get_results()
+    if (!is.na(results)) {
+      if (!is.null(results$meta_regression_results)) {
+        cat(results$meta_regression_results$meta_regression_predict)
+      } else {
+        cat()  # Return no output.
+      }
+    } else {
+      cat()  # Return no output.
+    }
+  })
+  outputOptions(output, "meta_regression_predict", suspendWhenHidden = FALSE)
+  
+  output$meta_regression_prediction <- renderPrint({
+    results <- get_results()
+    if (!is.na(results)) {
+      if (!is.null(results$meta_regression_results)) {
+        print(results$meta_regression_results$meta_regression_results, row.names = FALSE)
+      } else {
+        cat()  # Return no output.
+      }
+    } else {
+      cat()  # Return no output.
+    }
+  })
+  outputOptions(output, "meta_regression_prediction", suspendWhenHidden = FALSE)
   
 
 
+  
   output$refresh_button <- renderUI({
     HTML(paste('<a href="', session$clientData$url_search, if (session$clientData$url_search == "") '?' else '&', 'refresh">Refresh data</a>', sep = ""))
   })
@@ -1862,22 +1939,21 @@ server <- function(input, output, session) {
   
   
   
-  observeEvent(input$meta_regression_go, {
-    updateActionButton(session, "meta_regression_go", label = "Update your analysis", icon = NULL)
-  }, autoDestroy=TRUE)
-  observeEvent(input$meta_regression_go, {
-    rv[["analysis_button"]] <- "meta_regression"
-  })
-  
-  
-  
-  
-  observeEvent(input$go, {
-    updateActionButton(session, "go", label = "Update your analysis", icon = NULL)
-  }, autoDestroy=TRUE)
-  observeEvent(input$go, {
-    rv[["analysis_button"]] <- "subgroup_analysis"
-  })
+  output$downloadData <- downloadHandler(
+    filename = function() {
+      paste("Metadataset.csv")
+    },
+    content = function(file) {
+      df <- get_data()
+      df[is.na(df)] <- ""
+      df <- apply(df, 2, function(x) {
+        if (is.list(x)) {
+          sapply(x, function(y) paste(unlist(y), collapse = ","))
+        }
+      })
+      write.csv(df, file)
+    }
+  )
   
   
   
@@ -1896,26 +1972,6 @@ server <- function(input, output, session) {
       "<br />"
     )))
   })
-  
-  
-  
-  
-  output$downloadData <- downloadHandler(
-    filename = function() {
-      paste("Metadataset.csv")
-    },
-    content = function(file) {
-      df <- get_data()
-      #colnames(df) <- gsub("[^[:alnum:]_]", ".", colnames(df))
-      df[is.na(df)] <- ""
-      df <- apply(df, 2, function(x) {
-        if (is.list(x)) {
-          sapply(x, function(y) paste(unlist(y), collapse = ","))
-        }
-      })
-      write.csv(df, file)
-    }
-  )
   
   
   

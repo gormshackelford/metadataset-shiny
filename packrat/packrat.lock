@@ -1,6 +1,6 @@
 PackratFormat: 1.4
 PackratVersion: 0.5.0
-RVersion: 3.5.3
+RVersion: 3.6.3
 Repos: CRAN=https://cran.rstudio.com/
 
 Package: BH
@@ -8,24 +8,11 @@ Source: CRAN
 Version: 1.69.0-1
 Hash: 15f597ed227897f4f793b6161260f4b9
 
-Package: DT
-Source: CRAN
-Version: 0.9
-Hash: f72fd6ee6cf1656384503d6c7ca6cd96
-Requires: crosstalk, htmltools, htmlwidgets, jsonlite, magrittr,
-    promises
-
 Package: MuMIn
 Source: CRAN
-Version: 1.43.15
-Hash: 669b8e42aab820c37aa60c341b1e0c53
+Version: 1.43.17
+Hash: 20ac737ffd43c29f6141917d4a706752
 Requires: nlme
-
-Package: PKI
-Source: CRAN
-Version: 0.1-5.1
-Hash: 8c194fb34ebaab38a13e43ce84feedee
-Requires: base64enc
 
 Package: R6
 Source: CRAN
@@ -39,8 +26,8 @@ Hash: c0d56cd15034f395874c870141870c25
 
 Package: RCurl
 Source: CRAN
-Version: 1.95-4.12
-Hash: 261163f9c66d2a2c7ef8028765ed2838
+Version: 1.98-1.2
+Hash: a0f856720001c4d75974c65e0aa437be
 Requires: bitops
 
 Package: RJSONIO
@@ -66,9 +53,9 @@ Hash: 622be49032fe50bd42e96aaef613e209
 
 Package: aws.s3
 Source: CRAN
-Version: 0.3.12
-Hash: cf537df8c27f1fcf6228dcf504263579
-Requires: aws.signature, base64enc, digest, httr, xml2
+Version: 0.3.21
+Hash: f46a06fc920576dfe285ddf7d8864dda
+Requires: aws.signature, base64enc, curl, digest, httr, xml2
 
 Package: aws.signature
 Source: CRAN
@@ -91,11 +78,17 @@ Source: CRAN
 Version: 1.0-6
 Hash: 67d0775189fd0041d95abca618c5c07e
 
+Package: callr
+Source: CRAN
+Version: 3.4.3
+Hash: e9b50bc56e655025fde6f2f4b65154de
+Requires: R6, processx
+
 Package: cli
 Source: CRAN
-Version: 1.1.0
-Hash: bc4e54014c2049f2605ad0c3ba0cce6b
-Requires: assertthat, crayon
+Version: 2.0.2
+Hash: 6fc0b39f0fdbe3a025062807019e1180
+Requires: assertthat, crayon, fansi, glue
 
 Package: colorspace
 Source: CRAN
@@ -113,16 +106,16 @@ Source: CRAN
 Version: 1.3.4
 Hash: ff2840dd9b0d563fc80377a5a45510cd
 
-Package: crosstalk
-Source: CRAN
-Version: 1.0.0
-Hash: c13adea5906fbe2becfcb5f843b26749
-Requires: R6, ggplot2, htmltools, jsonlite, lazyeval, shiny
-
 Package: curl
 Source: CRAN
 Version: 4.2
 Hash: 3d7392b36f838a538683f98e580f35dd
+
+Package: desc
+Source: CRAN
+Version: 1.2.0
+Hash: a0a3ca939997679a52816bae4ed6aaae
+Requires: R6, assertthat, crayon, rprojroot
 
 Package: digest
 Source: CRAN
@@ -135,10 +128,20 @@ Version: 0.3.0
 Hash: 30b58109e4d7c6184a9c2e32f9ae38c6
 Requires: rlang
 
+Package: evaluate
+Source: CRAN
+Version: 0.14
+Hash: 18306cc3bc1aec7b7360eea8a0eb0ee1
+
 Package: fansi
 Source: CRAN
 Version: 0.4.0
 Hash: f147621f72b561485bfffcae78c4f5d5
+
+Package: farver
+Source: CRAN
+Version: 2.0.3
+Hash: 29a358c21cb8de2e424cbec6b6be6553
 
 Package: fastmap
 Source: CRAN
@@ -147,16 +150,15 @@ Hash: d272cd728e4095b3964181b44763f46c
 
 Package: gdtools
 Source: CRAN
-Version: 0.2.1
-Hash: 46562f6c83c65f140475446edce77c0a
+Version: 0.2.2
+Hash: 3ffbac718938ee36bcf1c457ec734652
 Requires: Rcpp, systemfonts
 
 Package: ggplot2
 Source: CRAN
-Version: 3.2.1
-Hash: 7cf3f9df0089475f133ec23befca1032
-Requires: digest, gtable, lazyeval, reshape2, rlang, scales, tibble,
-    viridisLite, withr
+Version: 3.3.0
+Hash: 0c4c6d28acdded392fce8d3d65f088de
+Requires: digest, glue, gtable, isoband, rlang, scales, tibble, withr
 
 Package: glue
 Source: CRAN
@@ -174,12 +176,6 @@ Version: 0.4.0
 Hash: 3f49193aa22146296cee8ae091b6303a
 Requires: Rcpp, digest, rlang
 
-Package: htmlwidgets
-Source: CRAN
-Version: 1.5.1
-Hash: 20e5cc02b795afc7322836c947b5aab2
-Requires: htmltools, jsonlite, yaml
-
 Package: httpuv
 Source: CRAN
 Version: 1.5.2
@@ -191,6 +187,12 @@ Source: CRAN
 Version: 1.4.1
 Hash: cc16de93eaabd3c6d0785cb8e6d059ab
 Requires: R6, curl, jsonlite, mime, openssl
+
+Package: isoband
+Source: CRAN
+Version: 0.2.1
+Hash: 1a07be47d39d5af2d468329aca6f1c49
+Requires: Rcpp, testthat
 
 Package: jsonlite
 Source: CRAN
@@ -213,6 +215,12 @@ Source: CRAN
 Version: 0.2.2
 Hash: 563563691bea3cde6945a98996d7c166
 
+Package: lifecycle
+Source: CRAN
+Version: 0.2.0
+Hash: df8649860c43571aab68cc73a2a02807
+Requires: glue, rlang
+
 Package: magrittr
 Source: CRAN
 Version: 1.5
@@ -220,8 +228,8 @@ Hash: bdc4d48c3135e8f3b399536ddf160df4
 
 Package: metafor
 Source: CRAN
-Version: 2.1-0
-Hash: b753faec4f02222529102c5d3da36992
+Version: 2.4-0
+Hash: 4e82e2f7f4e99a5a89bfefaeee4505f6
 Requires: nlme
 
 Package: mime
@@ -237,8 +245,8 @@ Requires: colorspace
 
 Package: nlme
 Source: CRAN
-Version: 3.1-141
-Hash: 011c066e63a30a0a0462dfe1503cb506
+Version: 3.1-147
+Hash: b57b31ff0dc8d5e0917ee9cd05254f6f
 
 Package: openssl
 Source: CRAN
@@ -253,20 +261,48 @@ Hash: 498643e765d1442ba7b1160a1df3abf9
 
 Package: pillar
 Source: CRAN
-Version: 1.4.2
-Hash: 28ff1862b4e0c8761efca442e80a63d8
+Version: 1.4.3
+Hash: 64ebcd61a33f2bd9059ffa8a323fd620
 Requires: cli, crayon, fansi, rlang, utf8, vctrs
+
+Package: pkgbuild
+Source: CRAN
+Version: 1.0.6
+Hash: f41de345bf0dda984cce64a7ea668ea4
+Requires: R6, callr, cli, crayon, desc, prettyunits, rprojroot, withr
 
 Package: pkgconfig
 Source: CRAN
 Version: 2.0.3
 Hash: 5ff5f2361851a49534c96caa2a8071c7
 
+Package: pkgload
+Source: CRAN
+Version: 1.0.2
+Hash: 41eb2db35be61f6f9e8864cf87a1ecb0
+Requires: desc, pkgbuild, rlang, rprojroot, rstudioapi, withr
+
 Package: plyr
 Source: CRAN
-Version: 1.8.4
-Hash: 5c3737d7c1846e30d40c8c38110b5fcd
+Version: 1.8.6
+Hash: 2f899f8d551304178babca7fe52cee00
 Requires: Rcpp
+
+Package: praise
+Source: CRAN
+Version: 1.0.0
+Hash: 77da8f1df873a4b91e5c4a68fe2fb1b6
+
+Package: prettyunits
+Source: CRAN
+Version: 1.1.1
+Hash: 20669cd8bb8b3207f6371edf8cf510af
+
+Package: processx
+Source: CRAN
+Version: 3.4.2
+Hash: e1671b1ca2f6c66f29ffb2828e98dc02
+Requires: R6, ps
 
 Package: promises
 Source: CRAN
@@ -274,16 +310,21 @@ Version: 1.1.0
 Hash: 0404586e7e8dff0de5fde4a65f37e39b
 Requires: R6, Rcpp, later, magrittr, rlang
 
-Package: reshape2
+Package: ps
 Source: CRAN
-Version: 1.4.3
-Hash: b7ea8a2e7a9df39c2346e78bd83e26f8
-Requires: Rcpp, plyr, stringr
+Version: 1.3.2
+Hash: 6e8ed574a4550ce4f72cdafa9227152b
 
 Package: rlang
 Source: CRAN
-Version: 0.4.0
-Hash: eabda67321fe1d477ea641ddd5d84f00
+Version: 0.4.5
+Hash: 99d62d0aaf54a9938784f4485efa9933
+
+Package: rprojroot
+Source: CRAN
+Version: 1.3-2
+Hash: a25c3f70c166fb3fbabc410eb32b6366
+Requires: backports
 
 Package: rsconnect
 Source: CRAN
@@ -298,22 +339,35 @@ Hash: 63f43c6ff14d92e1d65ca6c21d45a1eb
 
 Package: scales
 Source: CRAN
-Version: 1.0.0
-Hash: f4f1b13b6774ee3122a36466d1bc50b8
-Requires: R6, RColorBrewer, Rcpp, labeling, munsell, viridisLite
+Version: 1.1.0
+Hash: fa53af4e3ceba05fc79a31bde5962445
+Requires: R6, RColorBrewer, farver, labeling, lifecycle, munsell,
+    viridisLite
 
 Package: shiny
 Source: CRAN
-Version: 1.4.0
-Hash: 7a1d8725849ecb792b4df2c084769c23
+Version: 1.4.0.2
+Hash: 42d22fabaa1b11b7b7e4a9f623b4641a
 Requires: R6, crayon, digest, fastmap, htmltools, httpuv, jsonlite,
     later, mime, promises, rlang, sourcetools, xtable
 
 Package: shinycssloaders
 Source: CRAN
-Version: 0.2.0
-Hash: a6b8033e66d69998a2b54059e6d53476
+Version: 0.3
+Hash: c7b0a1144db60669980a3e99d7a64dca
 Requires: digest, glue, shiny
+
+Package: showtext
+Source: CRAN
+Version: 0.7-1
+Hash: dae81c43cf9a775e15ca6f31c212bb55
+Requires: showtextdb, sysfonts
+
+Package: showtextdb
+Source: CRAN
+Version: 2.0
+Hash: edb7ff50f4489d28cba8a2b34f72e69f
+Requires: sysfonts
 
 Package: sourcetools
 Source: CRAN
@@ -325,16 +379,10 @@ Source: CRAN
 Version: 1.4.3
 Hash: ed2a82fc7cc668c1345223d938cdfaf2
 
-Package: stringr
-Source: CRAN
-Version: 1.4.0
-Hash: 67da32dbb2a7a16f2ef124336358e54a
-Requires: glue, magrittr, stringi
-
 Package: svglite
 Source: CRAN
 Version: 1.2.3
-Hash: 5e87ee920b486cd9cb990c86fed77055
+Hash: c65a6c931dadfb387bacaf6a88a16852
 Requires: BH, Rcpp, gdtools
 
 Package: sys
@@ -342,16 +390,29 @@ Source: CRAN
 Version: 3.3
 Hash: d5a4afad9298f42aae77f6389713a066
 
+Package: sysfonts
+Source: CRAN
+Version: 0.8
+Hash: 9f0db96e86e4fc80c16a613bb47d0110
+
 Package: systemfonts
 Source: CRAN
-Version: 0.1.1
-Hash: ac1ec260f6d8907d0755ca5154607cfc
+Version: 0.2.0
+Hash: 1eb1b08cb3da12820ca600079d7d2440
+
+Package: testthat
+Source: CRAN
+Version: 2.3.2
+Hash: 5a3a20ddc31b2aa228dab6d29bd43948
+Requires: R6, cli, crayon, digest, ellipsis, evaluate, magrittr,
+    pkgload, praise, rlang, withr
 
 Package: tibble
 Source: CRAN
-Version: 2.1.3
-Hash: f59680d81ddc45fa3fcb8c07686d1d89
-Requires: cli, crayon, fansi, pillar, pkgconfig, rlang
+Version: 3.0.1
+Hash: 00d3817b8530e9ce9b465aeef293a011
+Requires: cli, crayon, ellipsis, fansi, lifecycle, magrittr, pillar,
+    pkgconfig, rlang, vctrs
 
 Package: utf8
 Source: CRAN
@@ -360,9 +421,9 @@ Hash: f3f97ce59092abc8ed3fd098a59e236c
 
 Package: vctrs
 Source: CRAN
-Version: 0.2.0
-Hash: daf77cb3dbcacd7fb619cb3748dc215f
-Requires: backports, digest, ellipsis, glue, rlang, zeallot
+Version: 0.2.4
+Hash: e06451edcd80df3a07b71fe7f5d10739
+Requires: digest, ellipsis, glue, rlang
 
 Package: viridisLite
 Source: CRAN
@@ -371,14 +432,13 @@ Hash: 78bb072c4f9e729a283d4c40ec93f9c6
 
 Package: withr
 Source: CRAN
-Version: 2.1.2
-Hash: d534108bcd5f34ec73e9eb523751ba20
+Version: 2.2.0
+Hash: 709a3da4deef928ab299f4ff52caf66b
 
 Package: xml2
 Source: CRAN
-Version: 1.2.2
-Hash: c5258a3beb15da46d4682eda667bf5ec
-Requires: Rcpp
+Version: 1.3.1
+Hash: f4ec872df66ff6bc703cddde2958663d
 
 Package: xtable
 Source: CRAN
@@ -387,10 +447,5 @@ Hash: dc0d47261b678d26032363bebd050540
 
 Package: yaml
 Source: CRAN
-Version: 2.2.0
-Hash: a5ad5616d83d89f8d84cbf3cf4034e13
-
-Package: zeallot
-Source: CRAN
-Version: 0.1.0
-Hash: 10b2ed48e202b4db421ae864041dc4b2
+Version: 2.2.1
+Hash: 424bc11cc358f23187feaa7978628196
