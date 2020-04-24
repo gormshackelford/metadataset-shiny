@@ -20,6 +20,7 @@ eval(metafor:::.MuMIn)
 options(warn = -1)     # Suppress warnings.
 options(scipen = 999)  # Suppress scientific notation (e.g., 1e10).
 
+
 font_add_google(name = "Noto Serif", family = "Noto Serif", regular.wt = 400, bold.wt = 700)
 showtext_auto()
 
@@ -717,7 +718,7 @@ server <- function(input, output, session) {
     
     
     # Selectors for attributes
-    attributes_df$encoded_attribute <- gsub("[^[:alnum:]_]", "", attributes_df$attribute)  # Delete non-alphanumeric characters (except underscores)
+    attributes_df$encoded_attribute <- gsub("[^[:alnum:]._]", ".", attributes_df$attribute)  # Delete non-alphanumeric characters (except periods and underscores)
     output$data_filters <- renderUI({
       lapply(1:length(attributes_df$attribute), function(i) {
         if(attributes_df$type[i] == "factor") {
@@ -940,6 +941,12 @@ server <- function(input, output, session) {
       }
       df$relevance_weight[df$citation == citations[i]] <- relevance_weight
     }
+    
+    # Round log_response_ratio and selected_v (for reproducible examples comparisons between this 
+    # analysis and analyses that use the data in the downloaded CSV file, which otherwise get rounded 
+    # to different numbers of digits).
+    df$log_response_ratio <- round(df$log_response_ratio, 8)
+    df$selected_v <- round(df$selected_v, 8)
 
     return(df)
     
@@ -1010,6 +1017,54 @@ server <- function(input, output, session) {
     update_filters(df)
     return(df)
   })
+  
+  
+
+    
+  # In the df, some columns are lists, which are useful in some parts of this code, but not in others.
+  # Here we flatten these lists. We also encode the column names and factor levels using gsub(), for
+  # use in the meta-regression model and in write.csv().
+  get_encoded_df <- function(df) {
+    encoded_df <- df
+    
+    # Delete spaces and other non-alphanumeric characters from column names (so that they can be
+    # used as moderators in the meta-regression model). These must match the encoded_attributes.
+    encoded_column_names <- gsub("[^[:alnum:]._]", ".", colnames(encoded_df))
+    colnames(encoded_df) <- encoded_column_names
+    
+    # Replace NAs with empty strings (so that NAs will be included as an additional 
+    # factor level for categorical variables, rather than being excluded from the model).
+    encoded_df[is.na(encoded_df)] <- ""
+    
+    # Encode the categorical variables.
+    factors <- attributes_df$encoded_attribute[attributes_df$type == "factor"]
+    for (i in 1:length(factors)) {
+      this_factor <- factors[i]
+      # Delete the "&" symbol from list items. We will use the "&" symbol when flattening lists.
+      encoded_df[[this_factor]] <- lapply(encoded_df[[this_factor]], function(x) gsub("&", "and", x))
+      # Sort the records alphabetically.
+      encoded_df[[this_factor]] <- lapply(encoded_df[[this_factor]], sort)
+      # Paste and unlist, with records separated by " & ".
+      encoded_df[[this_factor]] <- lapply(encoded_df[[this_factor]], function(x) paste(unlist(x), collapse = " & "))
+      encoded_df[[this_factor]] <- unlist(encoded_df[[this_factor]])
+      # Refactor.
+      encoded_df[[this_factor]] <- as.factor(encoded_df[[this_factor]])
+    }
+    # Encode publication and study (the random effects) as factors.
+    encoded_df$publication <- as.factor(encoded_df$publication)
+    encoded_df$study <- as.factor(encoded_df$study)
+    
+    # Encode the continuous variables as numeric (so that they are not treated as categorical
+    # variables, and so that NAs are excluded from the model for numeric moderators).
+    numbers <- attributes_df$encoded_attribute[attributes_df$type == "number"]
+    for (i in 1:length(numbers)) {
+      this_number <- numbers[i]
+      encoded_df[[this_number]][encoded_df[[this_number]] == ""] <- NA
+      encoded_df[[this_number]] <- as.numeric(encoded_df[[this_number]])
+    }
+    
+    return(encoded_df)
+  }
   
   
   
@@ -1158,34 +1213,13 @@ server <- function(input, output, session) {
               # Meta-regression
               #################
               
-              # We fit a meta-regression model using the full dataset, not the filtered dataset, using the 
-              # selected filters (if any) as moderators. 
+              # We fit a meta-regression model using the full dataset, not the filtered dataset, using 
+              # the selected filters (if any) as moderators. 
 
               # First, we get the full data set (not the subset, which is used for subgroup analysis,
-              # whereas the full data set is used for meta-regression) and we remove non-alphanumeric 
-              # characters from the column names, to match the moderator names.
-              encoded_df <- df
-              encoded_column_names <- gsub("[^[:alnum:]_]", "", colnames(encoded_df))
-              colnames(encoded_df) <- encoded_column_names
-              
-              # Replace NAs with empty strings (so that NAs will be included as an additional 
-              # factor level for categorical variables, rather than being excluded from the model).
-              encoded_df[is.na(encoded_df)] <- ""
-              
-              # Categorical variables can have multiple records in one cell (i.e. the cell is a list of
-              # records; e.g., a study that was done in two countries). Here we unlist and combine 
-              # these records (separated by ",") so that they can be used by the model.
-              factors <- attributes_df$encoded_attribute[attributes_df$type == "factor"]
-              for (i in 1:length(factors)) {
-                this_factor <- factors[i]
-                # Sort the records alphabetically.
-                encoded_df[[this_factor]] <- lapply(encoded_df[[this_factor]], sort)
-                # Paste and unlist.
-                encoded_df[[this_factor]] <- lapply(encoded_df[[this_factor]], function(x) paste(unlist(x), collapse = ","))
-                encoded_df[[this_factor]] <- unlist(encoded_df[[this_factor]])
-                # Refactor.
-                encoded_df[[this_factor]] <- as.factor(encoded_df[[this_factor]])
-              }
+              # whereas the full data set is used for meta-regression) and we prepare it for use in
+              # meta-regression.
+              encoded_df <- get_encoded_df(df)
               
               # Second, we get the moderators (if the user has selected any filters).
               moderators_df <- attributes_df
@@ -1196,17 +1230,17 @@ server <- function(input, output, session) {
                   this_input <- input[[paste(moderators_df$encoded_attribute[i])]]
                   this_attribute <- moderators_df$encoded_attribute[i]
                   if (moderators_df$type[i] == "factor") {
+                    this_level <- paste(unlist(this_input), collapse = "OR")
+                    moderators_df$moderator_level[i] <- paste(this_attribute, this_level, sep = "")
                     moderators_df$moderator_value[i] <- 1
-                    # If the user has selected only one factor level for this moderator, use it as 
-                    # the moderator level.
-                    if (length(this_input) == 1) {
-                      moderators_df$moderator_level[i] <- paste(this_attribute, this_input, sep="")
-                    } else {
-                    # If the user has selected multiple factor levels, create a new moderator level 
-                    # that combines these two levels.
-                      moderators_df$moderator_level[i] <- paste(this_attribute, "_Selected", sep="")
-                      encoded_df[[this_attribute]][encoded_df[[this_attribute]] %in% this_input] <- "_Selected"
-                    }
+                    # Use get_filter() to identify rows where this_input is in this_attribute. Note
+                    # that this uses the lists in df, not the flattened lists in encoded_df.
+                    filter <- get_filter(this_input, df[[paste(moderators_df$attribute[i])]])
+                    encoded_df[[this_attribute]] <- as.character(encoded_df[[this_attribute]])
+                    encoded_df[[this_attribute]][grepl(filter$pattern, filter$x)] <- this_level
+                    print(grepl(filter$pattern, filter$x))
+                    encoded_df[[this_attribute]] <- as.factor(encoded_df[[this_attribute]])
+                    print(levels(encoded_df[[this_attribute]]))
                   } else {  # if (moderators_df$type[i] == "number")
                     # Check to see if the user has moved the sliders from their min or max values.
                     # Only use this attribute as a moderator if they have moved the sliders.
@@ -1246,19 +1280,11 @@ server <- function(input, output, session) {
                 }
                 print(mods)
                 
-                # Format continous moderators as numeric (so that they are not treated as categorical
-                # variables, and so that NAs are excluded from the model).
-                continuous_moderators <- moderators_df$encoded_attribute[moderators_df$type == "number"]
-                for (moderator in continuous_moderators) {
-                  encoded_df[[moderator]] <- as.numeric(encoded_df[[moderator]])
-                }
-                
                 start_time <- Sys.time()
                 
                 # Fourth, we fit the meta-regression model.
                 print("Dredging...")
                 # Automated model selection
-                set.seed(42)
                 meta_regression_dredge <- dredge(
                   rma.mv(log_response_ratio, selected_v, method = "ML",  # ML is needed for log-likelihood comparisons, but we will refit with REML below.
                     mods = as.formula(paste(" ~ ", mods)),
@@ -1269,7 +1295,6 @@ server <- function(input, output, session) {
                 )
                 print(subset(meta_regression_dredge, delta <= 2, recalc.weights=FALSE))
                 # Select the "best" model.
-                set.seed(42)
                 meta_regression <- get.models(meta_regression_dredge, subset = 1, method = "REML")[[1]]
                 meta_regression_summary <- summary(meta_regression)
 
@@ -1919,7 +1944,7 @@ server <- function(input, output, session) {
     results <- get_results()
     if (!is.na(results)) {
       if (!is.null(results$meta_regression_results)) {
-        print(results$meta_regression_results$meta_regression_results, row.names = FALSE)
+        results$meta_regression_results$meta_regression_results
       } else {
         cat()  # Return no output.
       }
@@ -1945,17 +1970,21 @@ server <- function(input, output, session) {
     },
     content = function(file) {
       df <- get_data()
-      df[is.na(df)] <- ""
-      df <- apply(df, 2, function(x) {
+      # Flatten lists and encode variable names for use in meta-regression.
+      encoded_df <- get_encoded_df(df)
+      # Flatten all other lists (lists cannot be written by write.csv()).
+      encoded_df <- apply(encoded_df, 2, function(x) {
         if (is.list(x)) {
-          sapply(x, function(y) paste(unlist(y), collapse = ","))
+          sapply(x, function(y) paste(unlist(y), collapse = ", "))
         }
       })
-      write.csv(df, file)
+      # But use the unencoded column names.
+      colnames(encoded_df) <- colnames(df)
+      write.csv(encoded_df, file)
     }
   )
   
-  
+
   
   
   observeEvent(input$make_bookmark, {
