@@ -1,25 +1,28 @@
-rm(list = ls())        # Remove all from the environment.
-
-library(shiny)
-library(shinycssloaders)
+library(aws.s3)
 library(config)
 library(digest)
-library(aws.s3)
+library(ggplot2)
 library(httr)
 library(jsonlite)
 library(nlme)
 library(plyr)
-library(ggplot2)
 library(showtext)
 library(svglite)
+
+library(shiny)
+library(shinycssloaders)
+
 library(metafor)
 library(MuMIn)
-
+# Evaluate the helper functions for using metafor models in MuMIn. These functions need to be 
+# assigned to the global environment in the Shiny app, or the dredge() function will not use the 
+# moderators that are specified in rma.mv() (e.g., mods = ~ mod_1 + mod_2).
 eval(metafor:::.MuMIn)
+assign("makeArgs.rma", makeArgs.rma, .GlobalEnv)
+assign("coefTable.rma", coefTable.rma, .GlobalEnv)
 
 options(warn = -1)     # Suppress warnings.
 options(scipen = 999)  # Suppress scientific notation (e.g., 1e10).
-
 
 font_add_google(name = "Noto Serif", family = "Noto Serif", regular.wt = 400, bold.wt = 700)
 showtext_auto()
@@ -325,7 +328,7 @@ server <- function(input, output, session) {
     
     # Uncomment the following for data on cover crops.
     #publication <- 22270
-    outcome <- "4"  # Crop yield
+    #outcome <- "4"  # Crop yield
     #outcome <- "20"  # Soil
     #outcome <- "198"  # Soil organic matter
     #outcome <- "46"   # Soil microbial biomass
@@ -1238,9 +1241,7 @@ server <- function(input, output, session) {
                     filter <- get_filter(this_input, df[[paste(moderators_df$attribute[i])]])
                     encoded_df[[this_attribute]] <- as.character(encoded_df[[this_attribute]])
                     encoded_df[[this_attribute]][grepl(filter$pattern, filter$x)] <- this_level
-                    print(grepl(filter$pattern, filter$x))
                     encoded_df[[this_attribute]] <- as.factor(encoded_df[[this_attribute]])
-                    print(levels(encoded_df[[this_attribute]]))
                   } else {  # if (moderators_df$type[i] == "number")
                     # Check to see if the user has moved the sliders from their min or max values.
                     # Only use this attribute as a moderator if they have moved the sliders.
@@ -1256,7 +1257,7 @@ server <- function(input, output, session) {
               }
               moderators_df <- subset(moderators_df, moderator_value > 0)
               moderators <- moderators_df$encoded_attribute
-
+              
               # Third, if there are any moderators, we create a model formula from these moderators.
               n_moderators <- length(moderators)
               if (n_moderators > 0) {
@@ -1282,9 +1283,7 @@ server <- function(input, output, session) {
                 
                 start_time <- Sys.time()
                 
-                # Fourth, we fit the meta-regression model.
-                print("Dredging...")
-                # Automated model selection
+                # Fourth, we fit the meta-regression model, using MuMIn for automated model selection.
                 meta_regression_dredge <- dredge(
                   rma.mv(log_response_ratio, selected_v, method = "ML",  # ML is needed for log-likelihood comparisons, but we will refit with REML below.
                     mods = as.formula(paste(" ~ ", mods)),
@@ -1406,7 +1405,7 @@ server <- function(input, output, session) {
                 if (TRUE %in% moderators_df$mod) {  
                   meta_regression_formula <- paste('rma.mv(log_response_ratio, selected_v, mods = ~ ', meta_regression_formula, ', random = ~ 1 | publication/study)', sep = "")
                   meta_regression_predict <- paste('predict(model, newmods = c(', paste(newmods, collapse = ","), '))', sep = "")
-                # Else if no moderators were included in the model
+                  # Else if no moderators were included in the model
                 } else {
                   meta_regression_formula <- paste('rma.mv(log_response_ratio, selected_v, random = ~ 1 | publication/study)', sep = "")
                   meta_regression_predict <- paste('predict(model)', sep = "")
