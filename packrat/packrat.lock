@@ -160,6 +160,12 @@ Version: 3.3.0
 Hash: 0c4c6d28acdded392fce8d3d65f088de
 Requires: digest, glue, gtable, isoband, rlang, scales, tibble, withr
 
+Package: glmulti
+Source: CRAN
+Version: 1.0.7.1
+Hash: 660e6d10dad5aa4cf6168bec6d042da5
+Requires: rJava
+
 Package: glue
 Source: CRAN
 Version: 1.3.1
@@ -314,6 +320,11 @@ Package: ps
 Source: CRAN
 Version: 1.3.2
 Hash: 6e8ed574a4550ce4f72cdafa9227152b
+
+Package: rJava
+Source: CRAN
+Version: 0.9-12
+Hash: 8262e4ede98543de0824c4300e60fc55
 
 Package: rlang
 Source: CRAN

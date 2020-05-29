@@ -4,5 +4,6 @@ packrat/lib*/
 .Rprofile
 .Rproj.user
 config.yml
+debug.R
 rsconnect
 
