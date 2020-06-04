@@ -1,9 +1,17 @@
 # This Shiny app is for the dynamic meta-analysis of data from Metadataset (www.metadataset.com).
 # This code is provided under the MIT licence, without any warranties. It was developed by Gorm
-# Shackelford <gorm.shackelford@gmail.com> in 2020. It requires access to an Amazon AWS S3 bucket, 
-# with credentials that must be provided in a file named "config.yml" in the same directory as
-# this file. This code was tested with R version version 3.6.3 and the following R packages.
+# Shackelford <gorm.shackelford@gmail.com> in 2020. 
 
+# To run this Shiny app online (e.g., on shinyapps.io), with caching, you need access to an Amazon 
+# AWS S3 bucket with credentials that must be provided in a file named "config.yml" in the 
+# same directory as this file (and you need set the name of "s3_bucket", below). This S3 bucket is 
+# where the cached files are saved.
+
+# To run this Shiny app offline (e.g., on your computer), without caching, you do not need access to
+# an AWS S3 bucket, but you will need to set the options, below, under the heading for 
+# "Running this Shiny app offline, without caching".
+
+# This code was tested with R version version 3.6.3 and the following R packages.
 library(aws.s3)    # Tested with version 0.3.21
 library(config)    # Tested with version 0.3
 library(digest)    # Tested with version 0.6.21
@@ -265,6 +273,10 @@ ui <- function(request) { fluidPage(
 server <- function(input, output, session) {
 
   withProgress(message="Loading data...", value=0, {
+    
+    ########################
+    # Get the URL parameters
+    ########################
 
     # Get the url parameters that were used to launch the app.
     # For example, subject=6 for https://www.metadataset.com/api/data/?subject=6
@@ -308,37 +320,46 @@ server <- function(input, output, session) {
       bookmark <- ""
     }
     if (!is.null(query[['refresh']])) {
-      use_cached_data <- FALSE
+      read_data_from_cache <- FALSE
     } else {
-      use_cached_data <- TRUE
+      read_data_from_cache <- TRUE
     }
+    save_data_to_cache <- TRUE
 
-    # Uncomment the following for data on Japanese knotweed.
-    #subject = 7
-    #intervention = 774  # Herbicides
-    #intervention = 782  # Cutting/chopping
-    #publication = "26309"
-
-    # Uncomment the following for data on Himalayan balsam.
-    #subject = 8
-    #intervention = 774  # Herbicides
-    #intervention = 782  # Cutting/chopping
-    #outcome = 348  # Plants (weeds and invasive species)
-
-    # Uncomment the following for data on Giant hogweed.
-    #subject = "10"
-    #intervention = "774"  # Herbicides
-    #intervention = "782"  # Cutting/chopping
-
-    # Uncomment the following for data on cassava.
-    #subject <- "1"  # Cassava
-    #publication <- "311"
-    #publication <- "12999"
-    #publication <- "6344"
-     
-    # Uncomment the following for data on cover crops.
-    #publication <- 22270
-    #outcome <- "4"  # Crop yield
+    
+    #################################################
+    # Running this Shiny app offline, without caching
+    #################################################
+    
+    # To run the Shiny app offline (e.g., to debug it), you should disable data caching. There are
+    # two parts to caching: (1) reading data from the cache (an Amazon S3 bucket), and (2) saving the
+    # data to the cache (if not reading data from the cache). Reading data from the cache is the
+    # default (read_data_from_cache == TRUE). However, if a user clicks the refresh button, 
+    # read_data_from_cache == FALSE, and fresh data will be queried from the Metadataset API. The data 
+    # will then be saved to the S3 bucket (overwriting the old cache, if it exists), if 
+    # save_data_to_cache == TRUE. To run the Shiny app offline, without access to the S3 bucket
+    # (which requires the S3 credentials to be saved in a separate file, named "config.yml") you 
+    # should disable both parts of data caching by uncommenting these two lines:
+    
+    #read_data_from_cache <- FALSE
+    #save_data_to_cache <- FALSE
+    
+    
+    # To run the Shiny app offline (e.g., to debug it), you should also specify the ID number for the
+    # subject and optionally the intervention and/or outcome and/or publication you want to analyse. 
+    # To find these ID numbers (e.g., for cassava, subject == "1") you could check the links from 
+    # Metadataset. For example, by hovering over the link for the example of cover crops and crop 
+    # yield, you would see this URL: 
+    # https://metadataset.shinyapps.io/meta-analysis/?subject=6&intervention=91&outcome=4. 
+    # In this URL, the subject is 6, the intervention is 91, and the outcome is 4. Here are some 
+    # example of how you should specify the ID numbers:
+    
+    # Examples for cover crops
+    #subject <- "6"        # Cover crops (subject)
+    #intervention <- "91"  # Cover cropping (intervention)
+    #outcome <- "4"        # Crop yield (outcome)
+    
+    # Other examples of outcomes for cover crops
     #outcome <- "20"  # Soil
     #outcome <- "198"  # Soil organic matter
     #outcome <- "46"   # Soil microbial biomass
@@ -349,17 +370,37 @@ server <- function(input, output, session) {
     #outcome <- "166"  # Crop damage
     #outcome <- "455"  # Weed abundance
     #outcome <- "456"  # Weed diversity
-
+    
+    # Examples for Japanese knotweed
+    #subject = "7"
+    #intervention = "774"  # Herbicides
+    #intervention = "782"  # Cutting/chopping
+    #publication = "26309"
+    
+    # Examples for cassava
+    #subject = "1"
+    #intervention = "46"  # Intercropping
+      
+        
+    ##############
+    # Get the data
+    ##############
+    
     # Connect to AWS S3 using credentials for the user, "metadataset-shiny".
-    s3_credentials <- config::get("s3")
-    Sys.setenv(
-      "AWS_ACCESS_KEY_ID" = s3_credentials$AWS_ACCESS_KEY_ID,
-      "AWS_SECRET_ACCESS_KEY" = s3_credentials$AWS_SECRET_ACCESS_KEY,
-      "AWS_DEFAULT_REGION" = s3_credentials$AWS_DEFAULT_REGION
-    )
+    if (read_data_from_cache == TRUE | save_data_to_cache == TRUE) {
+      s3_credentials <- config::get("s3")
+      Sys.setenv(
+        "AWS_ACCESS_KEY_ID" = s3_credentials$AWS_ACCESS_KEY_ID,
+        "AWS_SECRET_ACCESS_KEY" = s3_credentials$AWS_SECRET_ACCESS_KEY,
+        "AWS_DEFAULT_REGION" = s3_credentials$AWS_DEFAULT_REGION
+      )
+    }
     s3_bucket <- "metadataset-shiny-cache"
-
-    # Get the data from the API
+    
+    # Get the data from the API. To get the data from the local host (e.g., if running the Metadatset
+    # website offline, on your computer, for development), uncomment the line for 
+    # "host <- local_host" and specify the path to the API on your computer (this is the path for
+    # the API for the Django development server ["python manage.py runserver"]).
     local_host <- "http://127.0.0.1:8000/api/"
     remote_host <- "https://www.metadataset.com/api/"
     host <- remote_host
@@ -387,13 +428,15 @@ server <- function(input, output, session) {
       return(results)
     }
 
+    # The filenames for the cached data are based on hashes of the api_query_string.
     cache <- paste(digest(api_query_string), "/", sep = "")
     cached_data <- paste(cache, "data.rds", sep = "")
     cached_intervention <- paste(cache, "intervention.rds", sep = "")
     cached_outcome <- paste(cache, "outcome.rds", sep = "")
     cached_attributes <- paste(cache, "attributes.rds", sep = "")
 
-    if (use_cached_data == TRUE & head_object(cached_data, s3_bucket, check_region=FALSE)) {
+    if (read_data_from_cache == TRUE & head_object(cached_data, s3_bucket, check_region=FALSE)) {
+      # Get the cached data from the S3 bucket.
       df <- s3readRDS(cached_data, s3_bucket, check_region=FALSE)
       attributes_df <- s3readRDS(cached_attributes, s3_bucket, check_region=FALSE)
       intervention <- s3readRDS(cached_intervention, s3_bucket, check_region=FALSE)
@@ -401,15 +444,7 @@ server <- function(input, output, session) {
       outcome <- s3readRDS(cached_outcome, s3_bucket, check_region=FALSE)
       output$outcome <- renderUI(HTML(paste("<h1>This outcome</h1>", outcome)))
     } else {
-      use_cached_data <- FALSE
-      ## Delete the cached data, if it exists. Warning: this could create race conditions.
-      #s3_objects <- get_bucket(s3_bucket, prefix = digest(api_query_string))
-      #if (length(s3_objects) > 0) {
-      #  for (i in 1:length(s3_objects)) {
-      #    key <- unlist(s3_objects[i])[1]
-      #    delete_object(key, s3_bucket)
-      #  }
-      #}
+      read_data_from_cache <- FALSE
       # Get the non-cached data from the API.
       df <- get_data_from_api(endpoint)
     }
@@ -422,7 +457,7 @@ server <- function(input, output, session) {
 
 
 
-    if (use_cached_data == FALSE) {
+    if (read_data_from_cache == FALSE) {
 
       # Intervention
       if (intervention != "") {
@@ -433,7 +468,9 @@ server <- function(input, output, session) {
       } else {
         intervention <- "All interventions"
       }
-      s3saveRDS(intervention, object = cached_intervention, s3_bucket, check_region=FALSE)
+      if (save_data_to_cache == TRUE) {
+        s3saveRDS(intervention, object = cached_intervention, s3_bucket, check_region=FALSE)
+      }
       output$intervention <- renderUI(HTML(paste("<h1>This intervention</h1>", intervention)))
 
       # Outcome
@@ -445,7 +482,9 @@ server <- function(input, output, session) {
       } else {
         outcome <- "All outcomes"
       }
-      s3saveRDS(outcome, object = cached_outcome, s3_bucket, check_region=FALSE)
+      if (save_data_to_cache == TRUE) {
+        s3saveRDS(outcome, object = cached_outcome, s3_bucket, check_region=FALSE)
+      }
       output$outcome <- renderUI(HTML(paste("<h1>This outcome</h1>", outcome)))
 
       # Publication-level metadata
@@ -586,17 +625,13 @@ server <- function(input, output, session) {
         
         # Get publication-level EAVs.
         EAV_publication_df <- get_EAV_df(df$EAV_publication)
-        dim(EAV_publication_df)
         # Get intervention-level EAVs.
         EAV_intervention_df <- get_EAV_df(df$EAV_intervention)
-        dim(EAV_intervention_df)
         # Get population-level EAVs.
         EAV_population_df <- get_EAV_df(df$EAV_population)
-        dim(EAV_population_df)
         # Get outcome-level EAVs.
         EAV_outcome_df <- get_EAV_df(df$EAV_outcome)
-        dim(EAV_outcome_df)
-        
+
         # Select the metadata at the lowest level (publication > intervention > population > outcome)
         EAV_df <- EAV_publication_df
         for (attribute in attributes) {
@@ -721,10 +756,12 @@ server <- function(input, output, session) {
         }
       }
 
-      s3saveRDS(df, object = cached_data, s3_bucket, check_region=FALSE)
-      s3saveRDS(attributes_df, object = cached_attributes, s3_bucket, check_region=FALSE)
+      if (save_data_to_cache == TRUE) {
+        s3saveRDS(df, object = cached_data, s3_bucket, check_region=FALSE)
+        s3saveRDS(attributes_df, object = cached_attributes, s3_bucket, check_region=FALSE)
+      }
 
-    }  # End of if (use_cached_data == FALSE)
+    }  # End of if (read_data_from_cache == FALSE)
 
 
 
@@ -820,6 +857,7 @@ server <- function(input, output, session) {
 
 
 
+
   # A list of user inputs, which is used to identify caches and bookmarks.
   settings <- reactive({
     all_inputs <- reactiveValuesToList(input)
@@ -837,7 +875,7 @@ server <- function(input, output, session) {
   rv <- reactiveValues()
   rv[["analysis_button"]] <- "subgroup_analysis"
   rv[["bookmark_link"]] <- ""
-  rv[["use_cached_data"]] <- use_cached_data
+  rv[["read_data_from_cache"]] <- read_data_from_cache
 
 
 
@@ -1095,9 +1133,9 @@ server <- function(input, output, session) {
       n_rows <- length(d$es_and_v)
       n_publications <- length(unique(d$publication))
       n_citations <- length(unique(d$citation))
-      use_cached_data <- rv[["use_cached_data"]]
+      read_data_from_cache <- rv[["read_data_from_cache"]]
       cached_results <- paste(cache, "results_", digest(c(settings(), rv[["analysis_button"]])), ".rds", sep = "")
-      if (use_cached_data == TRUE & head_object(cached_results, s3_bucket, check_region=FALSE)) {
+      if (read_data_from_cache == TRUE & head_object(cached_results, s3_bucket, check_region=FALSE)) {
         results <- s3readRDS(cached_results, s3_bucket, check_region=FALSE)
       } else {
         if (n_rows > 0) {
@@ -1440,7 +1478,9 @@ server <- function(input, output, session) {
             }
           }  # End of meta-regression
           # Save the results to the cache.
-          s3saveRDS(results, object = cached_results, s3_bucket, check_region=FALSE)
+          if (save_data_to_cache == TRUE) {
+            s3saveRDS(results, object = cached_results, s3_bucket, check_region=FALSE)
+          }
         } else {  # if (n_rows == 0)
           results <- NA
         }
@@ -2002,7 +2042,9 @@ server <- function(input, output, session) {
 
   observeEvent(input$make_bookmark, {
     bookmark_object <- paste("bookmarks_for_", cache, "settings_", digest(settings()), ".rds", sep = "")
-    s3saveRDS(settings(), object = bookmark_object, s3_bucket, check_region=FALSE)
+    if (save_data_to_cache == TRUE) {
+      s3saveRDS(settings(), object = bookmark_object, s3_bucket, check_region=FALSE)
+    }
     rv[["bookmark_url"]] <- paste(protocol, "//", hostname, if (port != "") ":", port, pathname, "?bookmark=", digest(settings()), "&", api_query_string, sep="")
     output$bookmark_link <- renderUI(HTML(paste(
       "<br />",
@@ -2039,7 +2081,7 @@ server <- function(input, output, session) {
   #output$debug1 <- renderPrint(bookmarked_settings)
   #output$debug2 <- renderPrint(settings())
   #output$debug2 <- renderPrint(settings())
-  #output$debug2 <- renderPrint(rv[["use_cached_data"]])
+  #output$debug2 <- renderPrint(rv[["read_data_from_cache"]])
   #output$debug2 <- renderPrint(settings()[1][[1]])
 
 
