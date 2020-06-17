@@ -432,8 +432,11 @@ server <- function(input, output, session) {
     cached_intervention <- paste(cache, "intervention.rds", sep = "")
     cached_outcome <- paste(cache, "outcome.rds", sep = "")
     cached_attributes <- paste(cache, "attributes.rds", sep = "")
-
-    if (read_data_from_cache == TRUE & head_object(cached_data, s3_bucket, check_region=TRUE)) {
+    cached_data_exists <- FALSE
+    if (read_data_from_cache == TRUE) {    
+      cached_data_exists <- object_exists(cached_data, s3_bucket, check_region=TRUE)
+    }
+    if (read_data_from_cache == TRUE & cached_data_exists) {
       # Get the cached data from the S3 bucket.
       df <- s3readRDS(cached_data, s3_bucket, check_region=TRUE)
       attributes_df <- s3readRDS(cached_attributes, s3_bucket, check_region=TRUE)
@@ -486,6 +489,9 @@ server <- function(input, output, session) {
       output$outcome <- renderUI(HTML(paste("<h1>This outcome</h1>", outcome)))
 
       # Publication-level metadata
+      names(df)[names(df) == "publication.pk"] <- "publication_pk"
+      names(df)[names(df) == "publication.subject"] <- "publication_subject"
+      df$publication_id <- paste("https://www.metadataset.com/subject/", df$publication_subject, "/publication/", df$publication_pk, "/", sep = "")
       names(df)[names(df) == "publication.EAV_publication"] <- "EAV_publication"
       names(df)[names(df) == "publication.xcountry_publication"] <- "publication_country"
       # Intervention-level metadata
@@ -641,7 +647,7 @@ server <- function(input, output, session) {
       }  # End of if (!is.null(attributes))
 
       # Dataset for display
-      df <- df[c("citation", "publication", "intervention", "population", "outcome", "comparison", "study_id", "study_name", "note", "treatment_mean", "treatment_sd", "treatment_n", "treatment_se", "control_mean", "control_sd", "control_n", "control_se", "treatment_mean_before", "treatment_sd_before", "treatment_n_before", "treatment_se_before", "control_mean_before", "control_sd_before", "control_n_before", "control_se_before", "n", "unit", "lsd", "is_significant", "approximate_p_value", "p_value", "z_value", "correlation_coefficient", "effect_size", "effect_size_unit", "other_effect_size_unit", "lower_limit", "upper_limit", "confidence", "se", "variance", "Methods", "Location", "Country", "Design")]
+      df <- df[c("citation", "publication_id", "publication", "intervention", "population", "outcome", "comparison", "study_id", "study_name", "note", "treatment_mean", "treatment_sd", "treatment_n", "treatment_se", "control_mean", "control_sd", "control_n", "control_se", "treatment_mean_before", "treatment_sd_before", "treatment_n_before", "treatment_se_before", "control_mean_before", "control_sd_before", "control_n_before", "control_se_before", "n", "unit", "lsd", "is_significant", "approximate_p_value", "p_value", "z_value", "correlation_coefficient", "effect_size", "effect_size_unit", "other_effect_size_unit", "lower_limit", "upper_limit", "confidence", "se", "variance", "Methods", "Location", "Country", "Design")]
       if (!is.null(attributes)) {
         df <- cbind(df, EAV_df)
       }
