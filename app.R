@@ -373,7 +373,7 @@ server <- function(input, output, session) {
     #subject = "7"
     #intervention = "774"  # Herbicides
     #intervention = "782"  # Cutting/chopping
-    #publication = "26309"
+    #publication = "23485"
     
     # Examples for cassava
     #subject = "1"
@@ -436,7 +436,7 @@ server <- function(input, output, session) {
     if (read_data_from_cache == TRUE) {    
       cached_data_exists <- object_exists(cached_data, s3_bucket, check_region=TRUE)
     }
-    if (read_data_from_cache == TRUE & cached_data_exists) {
+    if (cached_data_exists) {
       # Get the cached data from the S3 bucket.
       df <- s3readRDS(cached_data, s3_bucket, check_region=TRUE)
       attributes_df <- s3readRDS(cached_attributes, s3_bucket, check_region=TRUE)
@@ -519,7 +519,7 @@ server <- function(input, output, session) {
       df$population_country <- cbind(lapply(df$population_country, function(x) if(is.null(x)) NA else x))
       df$outcome_country <- lapply(df$outcome_country, unlist)
       df$outcome_country <- cbind(lapply(df$outcome_country, function(x) if(is.null(x)) NA else x))
-      # Select the metadata at the lowest level (intervention > population > outcome)
+      # Select the metadata at the lowest level (publication > intervention > population > outcome)
       df$Country <- df$publication_country
       df$Country[!is.na(df$intervention_country)] <- df$intervention_country[!is.na(df$intervention_country)]
       df$Country[!is.na(df$population_country)] <- df$population_country[!is.na(df$population_country)]
@@ -533,7 +533,7 @@ server <- function(input, output, session) {
       df$population_study_name <- lapply(df$population_study, function(x) if(is.null(x[["study_name"]])) NA else x[["study_name"]])
       df$outcome_study_id <- lapply(df$outcome_study, function(x) if(is.null(x[["study_id"]])) NA else x[["study_id"]])
       df$outcome_study_name <- lapply(df$outcome_study, function(x) if(is.null(x[["study_name"]])) NA else x[["study_name"]])
-      # Select the metadata at the lowest level (intervention > population > outcome)
+      # Select the metadata at the lowest level (publication > intervention > population > outcome)
       df$study_id <- df$intervention_study_id
       df$study_id[!is.na(df$population_study_id)] <- df$population_study_id[!is.na(df$population_study_id)]
       df$study_id[!is.na(df$outcome_study_id)] <- df$outcome_study_id[!is.na(df$outcome_study_id)]
@@ -542,22 +542,86 @@ server <- function(input, output, session) {
       df$study_name[!is.na(df$outcome_study_name)] <- df$outcome_study_name[!is.na(df$outcome_study_name)]
 
       # Location
-      names(df)[names(df) == "experiment.location"] <- "Location"
-      df$Location <- lapply(df$Location, unlist)
+      names(df)[names(df) == "experiment.location"] <- "location"
+      df$location <- lapply(df$location, unlist)
 
       # Experimental design
       names(df)[names(df) == "experiment.experimentdesign_set"] <- "Design"
       df$Design <- lapply(df$Design, unlist)
 
       # Methods
-      names(df)[names(df) == "experiment.methods"] <- "Methods"
-      df$Methods <- lapply(df$Methods, unlist)
+      names(df)[names(df) == "experiment.methods"] <- "methods"
+      df$methods <- lapply(df$methods, unlist)
 
       # Citation
       names(df)[names(df) == "publication.title"] <- "publication"
       names(df)[names(df) == "publication.citation"] <- "citation"
 
-      # Get the attributes for this subject
+      # Coordinates and dates
+      get_df_from_list <- function(x, cols) {
+        x_df <- data.frame(matrix(nrow=(length(x)), ncol=length(cols)))
+        colnames(x_df) <- cols
+        if (!is.null(unlist(x))) {
+          x_list <- lapply(x, function(x) {
+            if (!is.null(unlist(x))) apply(x, 2, list) 
+          })
+          for (i in 1:length(x_list)) {
+            if (!is.null(unlist(x_list[[i]]))) x_df[i,] <- x_list[[i]]
+          }
+        }
+        x_df$is_na <- apply(x_df, 1, function(x) all(is.na(x)))
+        return(x_df)
+      }
+      
+      # Coordinates
+      names(df)[names(df) == "publication.coordinates_publication"] <- "publication_coordinates"
+      names(df)[names(df) == "experiment.coordinates_experiment"] <- "intervention_coordinates"
+      names(df)[names(df) == "experiment_population.coordinates_population"] <- "population_coordinates"
+      names(df)[names(df) == "experiment_population_outcome.coordinates_outcome"] <- "outcome_coordinates"
+      coordinates_cols <- c("latitude_degrees", "latitude_minutes", "latitude_seconds", "latitude_direction", "longitude_degrees", "longitude_minutes", "longitude_seconds", "longitude_direction")
+      publication_coordinates_df <- get_df_from_list(df$publication_coordinates, coordinates_cols)
+      intervention_coordinates_df <- get_df_from_list(df$intervention_coordinates, coordinates_cols)
+      population_coordinates_df <- get_df_from_list(df$population_coordinates, coordinates_cols)
+      outcome_coordinates_df <- get_df_from_list(df$outcome_coordinates, coordinates_cols)
+      # Select the metadata at the lowest level (publication > intervention > population > outcome)
+      coordinates_df <- publication_coordinates_df
+      for (col in coordinates_cols) {
+        coordinates_df[[col]][!(intervention_coordinates_df[["is_na"]])] <- intervention_coordinates_df[[col]][!(intervention_coordinates_df[["is_na"]])]
+        coordinates_df[[col]][!(population_coordinates_df[["is_na"]])] <- population_coordinates_df[[col]][!(population_coordinates_df[["is_na"]])]
+        coordinates_df[[col]][!(outcome_coordinates_df[["is_na"]])] <- outcome_coordinates_df[[col]][!(outcome_coordinates_df[["is_na"]])]
+      }
+      coordinates_df <- coordinates_df[coordinates_cols]
+      df <- cbind(df, coordinates_df)
+      
+      # Dates
+      names(df)[names(df) == "publication.date_publication"] <- "publication_date"
+      names(df)[names(df) == "experiment.date_experiment"] <- "intervention_date"
+      names(df)[names(df) == "experiment_population.date_population"] <- "population_date"
+      names(df)[names(df) == "experiment_population_outcome.date_outcome"] <- "outcome_date"
+      date_cols <- c("start_year", "start_month", "start_day", "end_year", "end_month", "end_day")
+      publication_date_df <- get_df_from_list(df$publication_date, date_cols)
+      intervention_date_df <- get_df_from_list(df$intervention_date, date_cols)
+      population_date_df <- get_df_from_list(df$population_date, date_cols)
+      outcome_date_df <- get_df_from_list(df$outcome_date, date_cols)
+      # Select the metadata at the lowest level (publication > intervention > population > outcome)
+      date_df <- publication_date_df
+      for (col in date_cols) {
+        date_df[[col]][!(intervention_date_df[["is_na"]])] <- intervention_date_df[[col]][!(intervention_date_df[["is_na"]])]
+        date_df[[col]][!(population_date_df[["is_na"]])] <- population_date_df[[col]][!(population_date_df[["is_na"]])]
+        date_df[[col]][!(outcome_date_df[["is_na"]])] <- outcome_date_df[[col]][!(outcome_date_df[["is_na"]])]
+      }
+      date_df <- date_df[date_cols]
+      df <- cbind(df, date_df)
+
+
+
+
+      incProgress(0.20)
+
+
+
+
+      # Attributes (subject-specific covariates)
       endpoint <- paste(host, "subjects/?subject=", subject, sep="")
       this_subject <- fromJSON(endpoint, flatten=FALSE)
       this_subject_attribute <- this_subject$results$attribute
@@ -569,17 +633,9 @@ server <- function(input, output, session) {
       attribute_types <- attribute_types[order(attributes)]  # Sort in the same order that we will sort attributes
       attribute_units <- attribute_units[order(attributes)]  # Sort in the same order that we will sort attributes
       attributes <- attributes[order(attributes)]            # Sort attributes alphabetically
-
-
-
-
-      incProgress(0.20)
-
-
-
-
+      
       if (!is.null(attributes)) {
-
+        
         # Parse the EAVs from the API query. EAVs (Entity Attribute Values) are user-defined, 
         # subject-specific attributes, whereas other attributes (such as "Country" and "Design") are not 
         # user-defined (they are the same for all subjects). EAVs can be specified at four hierarchical levels:
@@ -635,7 +691,7 @@ server <- function(input, output, session) {
         EAV_population_df <- get_EAV_df(df$EAV_population)
         # Get outcome-level EAVs.
         EAV_outcome_df <- get_EAV_df(df$EAV_outcome)
-
+        
         # Select the metadata at the lowest level (publication > intervention > population > outcome)
         EAV_df <- EAV_publication_df
         for (attribute in attributes) {
@@ -644,15 +700,26 @@ server <- function(input, output, session) {
           EAV_df[[attribute]][!is.na(EAV_outcome_df[[attribute]])] <- EAV_outcome_df[[attribute]][!is.na(EAV_outcome_df[[attribute]])]
         }
 
+        df <- cbind(df, EAV_df)
+        
       }  # End of if (!is.null(attributes))
 
-      # Dataset for display
-      df <- df[c("citation", "publication_id", "publication", "intervention", "population", "outcome", "comparison", "study_id", "study_name", "note", "treatment_mean", "treatment_sd", "treatment_n", "treatment_se", "control_mean", "control_sd", "control_n", "control_se", "treatment_mean_before", "treatment_sd_before", "treatment_n_before", "treatment_se_before", "control_mean_before", "control_sd_before", "control_n_before", "control_se_before", "n", "unit", "lsd", "is_significant", "approximate_p_value", "p_value", "z_value", "correlation_coefficient", "effect_size", "effect_size_unit", "other_effect_size_unit", "lower_limit", "upper_limit", "confidence", "se", "variance", "Methods", "Location", "Country", "Design")]
+
+
+
+      # Select and order the columns
+      column_order <- c("citation", "publication_id", "publication", "intervention", "population", "outcome", "comparison", "methods", "location", "study_id", "study_name", "note", "treatment_mean", "treatment_sd", "treatment_n", "treatment_se", "control_mean", "control_sd", "control_n", "control_se", "treatment_mean_before", "treatment_sd_before", "treatment_n_before", "treatment_se_before", "control_mean_before", "control_sd_before", "control_n_before", "control_se_before", "n", "unit", "lsd", "is_significant", "approximate_p_value", "p_value", "z_value", "correlation_coefficient", "effect_size", "effect_size_unit", "other_effect_size_unit", "lower_limit", "upper_limit", "confidence", "se", "variance", "start_year", "start_month", "start_day", "end_year", "end_month", "end_day", "latitude_degrees", "latitude_minutes", "latitude_seconds", "latitude_direction", "longitude_degrees", "longitude_minutes", "longitude_seconds", "longitude_direction", "Country", "Design")
+      df <- df[column_order]
       if (!is.null(attributes)) {
         df <- cbind(df, EAV_df)
       }
+
+
+
+
+      # Citations
       publications_n <- length(unique(df$publication))
-      df$citation[df$citation == ""] <- "[AUTHOR], [YEAR]"            # The format from Metadataset if both author and year are NA
+      df$citation[df$citation == ""] <- "[AUTHOR], [YEAR]"               # The format from Metadataset if both author and year are NA
       df$citation[df$citation == "[AUTHOR], [YEAR]"] <- "[CITATION NA]"  # Convert to this new format.
       citations <- unique(df$citation)
       n_citations <- length(citations)
@@ -674,12 +741,12 @@ server <- function(input, output, session) {
       n_citations <- length(citations)
       for (i in 1:n_citations) {
         this_citation <- citations[i]
-        df_for_this_citation <- subset(df, citation == citations[i], select = c("Methods", "citation"))
-        studies <- unique(unlist(df_for_this_citation$Methods))
+        df_for_this_citation <- subset(df, citation == citations[i], select = c("methods", "citation"))
+        studies <- unique(unlist(df_for_this_citation$methods))
         if (length(studies) > 1) {
           for (j in 1:length(studies)) {
             this_study <- studies[j]
-            df$citation[df$citation == this_citation & df$Methods == this_study] <- paste(this_citation, " [Study ", j, "]", sep = "")
+            df$citation[df$citation == this_citation & df$methods == this_study] <- paste(this_citation, " [Study ", j, "]", sep = "")
           }
         }
       }
@@ -1187,13 +1254,19 @@ server <- function(input, output, session) {
     
     
     future({
-      # Credentials need to be set again for the new child process.
-      Sys.setenv(
-        "AWS_ACCESS_KEY_ID" = s3_credentials$AWS_ACCESS_KEY_ID,
-        "AWS_SECRET_ACCESS_KEY" = s3_credentials$AWS_SECRET_ACCESS_KEY,
-        "AWS_DEFAULT_REGION" = s3_credentials$AWS_DEFAULT_REGION
-      )
-      if (read_data_from_cache == TRUE & head_object(cached_results, s3_bucket, check_region=TRUE)) {
+      if (read_data_from_cache == TRUE | save_data_to_cache == TRUE) {
+        # Credentials need to be set again for the new child process.
+        Sys.setenv(
+          "AWS_ACCESS_KEY_ID" = s3_credentials$AWS_ACCESS_KEY_ID,
+          "AWS_SECRET_ACCESS_KEY" = s3_credentials$AWS_SECRET_ACCESS_KEY,
+          "AWS_DEFAULT_REGION" = s3_credentials$AWS_DEFAULT_REGION
+        )
+      }      
+      cached_results_exists <- FALSE
+      if (read_data_from_cache == TRUE) {    
+        cached_results_exists <- object_exists(cached_results, s3_bucket, check_region=TRUE)
+      }
+      if (cached_results_exists) {
         results <- s3readRDS(cached_results, s3_bucket, check_region=TRUE)
       } else {
         if (n_rows > 0) {
@@ -1581,8 +1654,8 @@ server <- function(input, output, session) {
               designs <- unique(unlist(di$Design))
               design <- if(!is.null(designs)) { get_designs() }
               
-              location <- unique(di$Location)
-              methods_text <- unique(unlist(di$Methods))
+              location <- unique(di$location)
+              methods_text <- unique(unlist(di$methods))
               if (n_rows > 1) {
                 subgroup_analysis <- rma.mv(yi = log_response_ratio, V = selected_v, random = ~ 1 | study, data = di)
                 effect_size <- as.numeric(round(exp(subgroup_analysis$b), 2))  # Response ratio
@@ -2082,12 +2155,12 @@ server <- function(input, output, session) {
       # Flatten all other lists (lists cannot be written by write.csv()).
       encoded_df <- apply(encoded_df, 2, function(x) {
         if (is.list(x)) {
-          sapply(x, function(y) paste(unlist(y), collapse = ", "))
+          sapply(x, function(y) paste(unlist(y), collapse = " & "))
         }
       })
       # But use the unencoded column names.
       colnames(encoded_df) <- colnames(df)
-      write.csv(encoded_df, file)
+      write.csv(encoded_df, file, fileEncoding = "UTF-8")
     }
   )
 
