@@ -375,6 +375,12 @@ server <- function(input, output, session) {
     #intervention = "782"  # Cutting/chopping
     #publication = "23485"
     
+    # Examples for Spartina
+    #subject = "17"
+    #intervention = "774"  # Herbicides
+    #intervention = "782"  # Cutting/chopping
+    #publication = "31038"
+    
     # Examples for cassava
     #subject = "1"
     #intervention = "46"  # Intercropping
@@ -569,7 +575,6 @@ server <- function(input, output, session) {
             if (!is.null(unlist(x_list[[i]]))) x_df[i,] <- x_list[[i]]
           }
         }
-        x_df$is_na <- apply(x_df, 1, function(x) all(is.na(x)))
         return(x_df)
       }
       
@@ -586,9 +591,9 @@ server <- function(input, output, session) {
       # Select the metadata at the lowest level (publication > intervention > population > outcome)
       coordinates_df <- publication_coordinates_df
       for (col in coordinates_cols) {
-        coordinates_df[[col]][!(intervention_coordinates_df[["is_na"]])] <- intervention_coordinates_df[[col]][!(intervention_coordinates_df[["is_na"]])]
-        coordinates_df[[col]][!(population_coordinates_df[["is_na"]])] <- population_coordinates_df[[col]][!(population_coordinates_df[["is_na"]])]
-        coordinates_df[[col]][!(outcome_coordinates_df[["is_na"]])] <- outcome_coordinates_df[[col]][!(outcome_coordinates_df[["is_na"]])]
+        coordinates_df[[col]][!is.na(intervention_coordinates_df[[col]])] <- intervention_coordinates_df[[col]][!is.na(intervention_coordinates_df[[col]])]
+        coordinates_df[[col]][!is.na(population_coordinates_df[[col]])] <- population_coordinates_df[[col]][!is.na(population_coordinates_df[[col]])]
+        coordinates_df[[col]][!is.na(outcome_coordinates_df[[col]])] <- outcome_coordinates_df[[col]][!is.na(outcome_coordinates_df[[col]])]
       }
       coordinates_df <- coordinates_df[coordinates_cols]
       df <- cbind(df, coordinates_df)
@@ -606,9 +611,9 @@ server <- function(input, output, session) {
       # Select the metadata at the lowest level (publication > intervention > population > outcome)
       date_df <- publication_date_df
       for (col in date_cols) {
-        date_df[[col]][!(intervention_date_df[["is_na"]])] <- intervention_date_df[[col]][!(intervention_date_df[["is_na"]])]
-        date_df[[col]][!(population_date_df[["is_na"]])] <- population_date_df[[col]][!(population_date_df[["is_na"]])]
-        date_df[[col]][!(outcome_date_df[["is_na"]])] <- outcome_date_df[[col]][!(outcome_date_df[["is_na"]])]
+        date_df[[col]][!is.na(intervention_date_df[[col]])] <- intervention_date_df[[col]][!is.na(intervention_date_df[[col]])]
+        date_df[[col]][!is.na(population_date_df[[col]])] <- population_date_df[[col]][!is.na(population_date_df[[col]])]
+        date_df[[col]][!is.na(outcome_date_df[[col]])] <- outcome_date_df[[col]][!is.na(outcome_date_df[[col]])]
       }
       date_df <- date_df[date_cols]
       df <- cbind(df, date_df)
