@@ -1,14 +1,14 @@
 # This Shiny app is for the dynamic meta-analysis of data from Metadataset (www.metadataset.com).
 # This code is provided under the MIT licence, without any warranties. It was developed by Gorm
-# Shackelford <gorm.shackelford@gmail.com> in 2020. 
+# Shackelford <gorm.shackelford@gmail.com> in 2020.
 
-# To run this Shiny app online (e.g., on shinyapps.io), with caching, you need access to an Amazon 
-# AWS S3 bucket with credentials that must be provided in a file named "config.yml" in the 
-# same directory as this file (and you need set the name of "s3_bucket", below). This S3 bucket is 
+# To run this Shiny app online (e.g., on shinyapps.io), with caching, you need access to an Amazon
+# AWS S3 bucket with credentials that must be provided in a file named "config.yml" in the
+# same directory as this file (and you need set the name of "s3_bucket", below). This S3 bucket is
 # where the cached files are saved.
 
 # To run this Shiny app offline (e.g., on your computer), without caching, you do not need access to
-# an AWS S3 bucket, but you will need to set the options, below, under the heading for 
+# an AWS S3 bucket, but you will need to set the options, below, under the heading for
 # "Running this Shiny app offline, without caching".
 
 # This code was tested with R version version 3.6.3 and the following R packages.
@@ -271,7 +271,7 @@ ui <- function(request) { fluidPage(
 server <- function(input, output, session) {
 
   withProgress(message="Loading data...", value=0, {
-    
+
     ########################
     # Get the URL parameters
     ########################
@@ -324,39 +324,39 @@ server <- function(input, output, session) {
     }
     save_data_to_cache <- TRUE
 
-    
+
     #################################################
     # Running this Shiny app offline, without caching
     #################################################
-    
+
     # To run the Shiny app offline (e.g., to debug it), you should disable data caching. There are
     # two parts to caching: (1) reading data from the cache (an Amazon S3 bucket), and (2) saving the
     # data to the cache (if not reading data from the cache). Reading data from the cache is the
-    # default (read_data_from_cache == TRUE). However, if a user clicks the refresh button, 
-    # read_data_from_cache == FALSE, and fresh data will be queried from the Metadataset API. The data 
-    # will then be saved to the S3 bucket (overwriting the old cache, if it exists), if 
+    # default (read_data_from_cache == TRUE). However, if a user clicks the refresh button,
+    # read_data_from_cache == FALSE, and fresh data will be queried from the Metadataset API. The data
+    # will then be saved to the S3 bucket (overwriting the old cache, if it exists), if
     # save_data_to_cache == TRUE. To run the Shiny app offline, without access to the S3 bucket
-    # (which requires the S3 credentials to be saved in a separate file, named "config.yml") you 
+    # (which requires the S3 credentials to be saved in a separate file, named "config.yml") you
     # should disable both parts of data caching by uncommenting these two lines:
-    
+
     #read_data_from_cache <- FALSE
     #save_data_to_cache <- FALSE
-    
-    
+
+
     # To run the Shiny app offline (e.g., to debug it), you should also specify the ID number for the
-    # subject and optionally the intervention and/or outcome and/or publication you want to analyse. 
-    # To find these ID numbers (e.g., for cassava, subject == "1") you could check the links from 
-    # Metadataset. For example, by hovering over the link for the example of cover crops and crop 
-    # yield, you would see this URL: 
-    # https://metadataset.shinyapps.io/meta-analysis/?subject=6&intervention=91&outcome=4. 
-    # In this URL, the subject is 6, the intervention is 91, and the outcome is 4. Here are some 
+    # subject and optionally the intervention and/or outcome and/or publication you want to analyse.
+    # To find these ID numbers (e.g., for cassava, subject == "1") you could check the links from
+    # Metadataset. For example, by hovering over the link for the example of cover crops and crop
+    # yield, you would see this URL:
+    # https://metadataset.shinyapps.io/meta-analysis/?subject=6&intervention=91&outcome=4.
+    # In this URL, the subject is 6, the intervention is 91, and the outcome is 4. Here are some
     # example of how you should specify the ID numbers:
-    
+
     # Examples for cover crops
     #subject <- "6"        # Cover crops (subject)
     #intervention <- "91"  # Cover cropping (intervention)
     #outcome <- "4"        # Crop yield (outcome)
-    
+
     # Other examples of outcomes for cover crops
     #outcome <- "20"  # Soil
     #outcome <- "198"  # Soil organic matter
@@ -368,28 +368,28 @@ server <- function(input, output, session) {
     #outcome <- "166"  # Crop damage
     #outcome <- "455"  # Weed abundance
     #outcome <- "456"  # Weed diversity
-    
+
     # Examples for Japanese knotweed
     #subject = "7"
     #intervention = "774"  # Herbicides
     #intervention = "782"  # Cutting/chopping
     #publication = "23485"
-    
+
     # Examples for Spartina
     #subject = "17"
     #intervention = "774"  # Herbicides
     #intervention = "782"  # Cutting/chopping
     #publication = "31038"
-    
+
     # Examples for cassava
     #subject = "1"
     #intervention = "46"  # Intercropping
-      
-        
+
+
     ##############
     # Get the data
     ##############
-    
+
     # Set credentials for the AWS S3 bucket.
     if (read_data_from_cache == TRUE | save_data_to_cache == TRUE) {
       s3_credentials <- config::get("s3")
@@ -400,9 +400,9 @@ server <- function(input, output, session) {
       )
     }
     s3_bucket <- "metadataset-shiny-cache"
-    
+
     # Get the data from the API. To get the data from the local host (e.g., if running the Metadatset
-    # website offline, on your computer, for development), uncomment the line for 
+    # website offline, on your computer, for development), uncomment the line for
     # "host <- local_host" and specify the path to the API on your computer (this is the path for
     # the API for the Django development server ["python manage.py runserver"]).
     local_host <- "http://127.0.0.1:8000/api/"
@@ -439,7 +439,7 @@ server <- function(input, output, session) {
     cached_outcome <- paste(cache, "outcome.rds", sep = "")
     cached_attributes <- paste(cache, "attributes.rds", sep = "")
     cached_data_exists <- FALSE
-    if (read_data_from_cache == TRUE) {    
+    if (read_data_from_cache == TRUE) {
       cached_data_exists <- object_exists(cached_data, s3_bucket, check_region=TRUE)
     }
     if (cached_data_exists) {
@@ -569,7 +569,7 @@ server <- function(input, output, session) {
         colnames(x_df) <- cols
         if (!is.null(unlist(x))) {
           x_list <- lapply(x, function(x) {
-            if (!is.null(unlist(x))) apply(x, 2, list) 
+            if (!is.null(unlist(x))) apply(x, 2, list)
           })
           for (i in 1:length(x_list)) {
             if (!is.null(unlist(x_list[[i]]))) x_df[i,] <- x_list[[i]]
@@ -577,7 +577,7 @@ server <- function(input, output, session) {
         }
         return(x_df)
       }
-      
+
       # Coordinates
       names(df)[names(df) == "publication.coordinates_publication"] <- "publication_coordinates"
       names(df)[names(df) == "experiment.coordinates_experiment"] <- "intervention_coordinates"
@@ -597,7 +597,7 @@ server <- function(input, output, session) {
       }
       coordinates_df <- coordinates_df[coordinates_cols]
       df <- cbind(df, coordinates_df)
-      
+
       # Dates
       names(df)[names(df) == "publication.date_publication"] <- "publication_date"
       names(df)[names(df) == "experiment.date_experiment"] <- "intervention_date"
@@ -638,23 +638,23 @@ server <- function(input, output, session) {
       attribute_types <- attribute_types[order(attributes)]  # Sort in the same order that we will sort attributes
       attribute_units <- attribute_units[order(attributes)]  # Sort in the same order that we will sort attributes
       attributes <- attributes[order(attributes)]            # Sort attributes alphabetically
-      
+
       if (!is.null(attributes)) {
-        
-        # Parse the EAVs from the API query. EAVs (Entity Attribute Values) are user-defined, 
-        # subject-specific attributes, whereas other attributes (such as "Country" and "Design") are not 
+
+        # Parse the EAVs from the API query. EAVs (Entity Attribute Values) are user-defined,
+        # subject-specific attributes, whereas other attributes (such as "Country" and "Design") are not
         # user-defined (they are the same for all subjects). EAVs can be specified at four hierarchical levels:
         # publication > intervention > population > outcome. For each of these levels, there is a column in df
-        # (e.g., df$EAV_publication). Each row in this column is itself a data frame, containing all of the 
-        # EAVs for one data point (i.e. all of the EAVs for one row in df). This function takes one of these 
-        # columns (e.g., df$EAV_publication) and returns a list with one list item for each row in this column. 
-        # Each list item is itself a list that contains at least one value (which may be NA) for each 
+        # (e.g., df$EAV_publication). Each row in this column is itself a data frame, containing all of the
+        # EAVs for one data point (i.e. all of the EAVs for one row in df). This function takes one of these
+        # columns (e.g., df$EAV_publication) and returns a list with one list item for each row in this column.
+        # Each list item is itself a list that contains at least one value (which may be NA) for each
         # attribute in this subject.
         get_EAV_list <- function(x) {
           # If there are any values, these will be either "value_as_factor" or "value_as_number" (and the other
-          # one will be NA). First, select the non-NA values. Second, aggregate the values by attribute (as one 
+          # one will be NA). First, select the non-NA values. Second, aggregate the values by attribute (as one
           # list of values per attribute). This allows us to have multiple values for each attribute, like
-          # having multiple values for "Design" (e.g., "replicated" and "controlled") (but note that these are 
+          # having multiple values for "Design" (e.g., "replicated" and "controlled") (but note that these are
           # subject-specific attributes, which are dynamically defined, whereas "Design" is not).
           if(length(x) > 0) {
             # Select "value_as_factor" or "value_as_number" for each row (the one that is not NA).
@@ -674,20 +674,20 @@ server <- function(input, output, session) {
           # These values are in the same order as the attributes (which are in alphabetical order).
           return(x$value)
         }
-        
+
         get_EAV_df <- function(x) {
           # Parse the EAVs from the API query. This returns a list with one item for each row in df.
           x <- lapply(x, get_EAV_list)
           # Convert each item in the list to a column in a matrix.
           x <- do.call(cbind, x)
-          # Transpose the matrix, convert it to a data frame, and add column names (the names of all 
+          # Transpose the matrix, convert it to a data frame, and add column names (the names of all
           # attributes for this subject).
           x <- t(x)
           x <- as.data.frame(x, stringsAsFactors = FALSE)
           colnames(x) <- attributes
           return(x)
         }
-        
+
         # Get publication-level EAVs.
         EAV_publication_df <- get_EAV_df(df$EAV_publication)
         # Get intervention-level EAVs.
@@ -696,7 +696,7 @@ server <- function(input, output, session) {
         EAV_population_df <- get_EAV_df(df$EAV_population)
         # Get outcome-level EAVs.
         EAV_outcome_df <- get_EAV_df(df$EAV_outcome)
-        
+
         # Select the metadata at the lowest level (publication > intervention > population > outcome)
         EAV_df <- EAV_publication_df
         for (attribute in attributes) {
@@ -706,7 +706,7 @@ server <- function(input, output, session) {
         }
 
         df <- cbind(df, EAV_df)
-        
+
       }  # End of if (!is.null(attributes))
 
 
@@ -786,13 +786,13 @@ server <- function(input, output, session) {
 
       # Significance from LSD
       df$mean_difference <- df$treatment_mean - df$control_mean
-      df$significance_from_lsd <- abs(df$mean_difference) - df$lsd
-      df$significance_from_lsd <- lapply(df$significance_from_lsd, function(x) if(is.na(x)) NA else if(x < 0) "Non-significant" else "Significant")
+      df$is_significant_from_lsd <- abs(df$mean_difference) - df$lsd
+      df$is_significant_from_lsd <- lapply(df$is_significant_from_lsd, function(x) if(is.na(x)) NA else if(x < 0) "FALSE" else "TRUE")
 
       # Selected significance
-      df$is_significant <- lapply(df$is_significant, function(x) if(is.na(x)) NA else if(x == "FALSE") "Non-significant" else "Significant")
+      df$is_significant <- lapply(df$is_significant, function(x) if(is.na(x)) NA else x)
       df$selected_significance <- df$is_significant
-      df$selected_significance[!is.na(df$significance_from_lsd)] <- df$significance_from_lsd[!is.na(df$significance_from_lsd)]
+      df$selected_significance[!is.na(df$is_significant_from_lsd)] <- df$is_significant_from_lsd[!is.na(df$is_significant_from_lsd)]
 
 
 
@@ -896,7 +896,7 @@ server <- function(input, output, session) {
 
     # Save a copy of this df, so that we can revert to it later.
     original_df <- df
-    
+
   })  # End of withProgress() for data loading
 
 
@@ -985,7 +985,7 @@ server <- function(input, output, session) {
     df$log_response_ratio[df$lower_is_better == TRUE] <- log(df$response_ratio[df$lower_is_better == TRUE])
 
     # P-value from significance (using assumed p-values for comparisons reported as "significant" or "non-significant")
-    df$p_from_significance <- lapply(df$selected_significance, function(x) if(is.na(x)) NA else if(x == "Significant") input$significant_p else input$non_significant_p)
+    df$p_from_significance <- lapply(df$selected_significance, function(x) if(is.na(x)) NA else if(x == "TRUE") input$significant_p else input$non_significant_p)
 
     # Selected p-value
     df$selected_p <- df$p_from_significance
@@ -1193,8 +1193,8 @@ server <- function(input, output, session) {
 
     return(encoded_df)
   }
-  
-  
+
+
   # This function gets the moderators for meta-regression, based on the filters that the user selected.
   get_moderators_df <- function(df, encoded_df) {
     moderators_df <- attributes_df
@@ -1247,17 +1247,17 @@ server <- function(input, output, session) {
     analysis_button <- rv[["analysis_button"]]
     cached_results <- paste(cache, "results_", digest(c(settings(), analysis_button)), ".rds", sep = "")
 
-      
-      
-      
+
+
+
     df <- get_df()
     df <- subset(df, es_and_v == TRUE)
     encoded_df <- get_encoded_df(df)
     moderators_df <- get_moderators_df(df, encoded_df)
-    
-    
-    
-    
+
+
+
+
     future({
       if (read_data_from_cache == TRUE | save_data_to_cache == TRUE) {
         # Credentials need to be set again for the new child process.
@@ -1266,20 +1266,20 @@ server <- function(input, output, session) {
           "AWS_SECRET_ACCESS_KEY" = s3_credentials$AWS_SECRET_ACCESS_KEY,
           "AWS_DEFAULT_REGION" = s3_credentials$AWS_DEFAULT_REGION
         )
-      }      
+      }
       cached_results_exists <- FALSE
-      if (read_data_from_cache == TRUE) {    
+      if (read_data_from_cache == TRUE) {
         cached_results_exists <- object_exists(cached_results, s3_bucket, check_region=TRUE)
       }
       if (cached_results_exists) {
         results <- s3readRDS(cached_results, s3_bucket, check_region=TRUE)
       } else {
         if (n_rows > 0) {
-          
+
           ###############
           # Meta-analysis
           ###############
-          
+
           # We will compare the results of the subgroup analysis with an analysis of the full dataset.
           df_n_rows <- length(df$es_and_v)
           df_n_publications <- length(unique(df$publication))
@@ -1298,21 +1298,21 @@ server <- function(input, output, session) {
               ci.ub = round(exp(df$log_response_ratio[1] + (1.96 * sqrt(df$selected_v[1]))), 2)
             )
           }
-          
+
           ###################
           # Subgroup analysis
           ###################
-          
+
           # If there are at least two data points in the subgroup, we do the analysis.
           if (n_rows > 1) {
-            
+
             # We fit the default model (with inverse-variance weights, without relevance weights).
             subgroup_analysis <- rma.mv(yi = log_response_ratio, V = selected_v, random = ~ 1 | publication/study, data = d)
-            
+
             ###################
             # Relevance weights
             ###################
-            
+
             # M is the variance-covariance matrix from the default model. The inverse of M is the
             # default weight matrix: weights(subgroup_analysis, type = "matrix").
             M <- subgroup_analysis$M
@@ -1323,7 +1323,7 @@ server <- function(input, output, session) {
             # Then we fit a new model with this modified weight matrix.
             subgroup_analysis <- rma.mv(yi = log_response_ratio, V = selected_v, W = W, random = ~ 1 | publication/study, data = d)
             subgroup_analysis_summary <- summary(subgroup_analysis)
-            
+
             # Results of the subgroup analysis
             log_response_ratio <- subgroup_analysis$b
             log_response_ratio_se <- subgroup_analysis$se
@@ -1395,17 +1395,17 @@ server <- function(input, output, session) {
             )
           }
           results <- list(subgroup_analysis_summary = subgroup_analysis_summary, effect_size = effect_size, ci.lb = ci.lb, ci.ub = ci.ub, pval = pval, QE = QE, QEp = QEp, direction = direction, percent = percent, lower_percent = lower_percent, upper_percent = upper_percent, log_response_ratio = log_response_ratio, log_response_ratio_se = log_response_ratio_se, supergroup_results = supergroup_results, results_df = results_df, d = d, n_publications = n_publications, n_citations = n_citations, n_rows = n_rows)
-          
+
           if (analysis_button == "meta_regression") {
             if (df_n_rows > 1) {
-              
+
               #################
               # Meta-regression
               #################
-              
+
               # We fit a meta-regression model using the full dataset, not the filtered dataset, using
               # the selected filters (if any) as moderators.
-              
+
               # If there are any moderators, we create a model formula from these moderators.
               moderators <- moderators_df$encoded_attribute
               n_moderators <- length(moderators)
@@ -1429,15 +1429,15 @@ server <- function(input, output, session) {
                   mods <- paste(moderators, collapse="+")
                 }
                 print(mods)
-                
+
                 start_time <- Sys.time()
-                
-                # We fit the meta-regression model, using MuMIn for automated model selection. To 
-                # use MuMIN with metafor, we need to evaluate the helper functions for using metafor 
-                # models in MuMIn. These functions need to be assigned to the global environment in 
-                # the Shiny app, or the dredge() function will not use the moderators that are 
-                # specified in rma.mv() (e.g., mods = ~ mod_1 + mod_2). With asynchronous code, 
-                # using future/promises, these functions need to be assigned here, instead of 
+
+                # We fit the meta-regression model, using MuMIn for automated model selection. To
+                # use MuMIN with metafor, we need to evaluate the helper functions for using metafor
+                # models in MuMIn. These functions need to be assigned to the global environment in
+                # the Shiny app, or the dredge() function will not use the moderators that are
+                # specified in rma.mv() (e.g., mods = ~ mod_1 + mod_2). With asynchronous code,
+                # using future/promises, these functions need to be assigned here, instead of
                 # outside the server function.
                 eval(metafor:::.MuMIn)
                 assign("makeArgs.rma", makeArgs.rma, .GlobalEnv)
@@ -1454,7 +1454,7 @@ server <- function(input, output, session) {
                 # Select the "best" model.
                 meta_regression <- get.models(meta_regression_dredge, subset = 1, method = "REML")[[1]]
                 meta_regression_summary <- summary(meta_regression)
-                
+
                 # We get the model predictions for the moderator levels that the user selected.
                 # The names of the moderators (including dummy variables for categorical moderators,
                 # which are formatted as "ModeratorALevelX" (e.g., "CovercroptypeLegume") and also
@@ -1463,13 +1463,13 @@ server <- function(input, output, session) {
                 # (e.g., "CovercroptypeLegume:NitrogenfertilizedcashcropNo")).
                 names <- names(coef(meta_regression))
                 names <- names[-1]  # Delete the intercept, which will automatically be added by the predict function.
-                
+
                 # If there is at least one moderator in the selected model
                 if (length(names) > 0) {
                   # Set newmods to zero (i.e. the intercept of the model). We will modify this below.
                   newmods <- c(rep(0, length(names)))
                   print(newmods)
-                  
+
                   for (i in 1:length(moderators_df$moderator_level)) {  # For each filter that the user has selected
                     this_filter <- moderators_df$moderator_level[i]
                     pattern_1 <- paste(":", this_filter, "$", sep = "")
@@ -1510,7 +1510,7 @@ server <- function(input, output, session) {
                   newmods <- ""
                 }
                 print(meta_regression_results)
-                
+
                 # Meta-regression results
                 log_response_ratio <- meta_regression_results$pred
                 log_response_ratio_se <- meta_regression_results$se
@@ -1548,7 +1548,7 @@ server <- function(input, output, session) {
                 } else {
                   upper_percent <- "0% different"
                 }
-                
+
                 # Which moderators were included in the model?
                 moderators_df$mod <- NA
                 meta_regression_formula <- as.character(meta_regression$formula.mods)[2]
@@ -1556,7 +1556,7 @@ server <- function(input, output, session) {
                   pattern <- paste("\\b", moderators[i], "\\b", sep = "")
                   moderators_df$mod[i] <- grepl(pattern, meta_regression_formula)
                 }
-                
+
                 # Create text for output to the "Model summaries" tab.
                 # If any moderators were included
                 if (TRUE %in% moderators_df$mod) {
@@ -1567,14 +1567,14 @@ server <- function(input, output, session) {
                   meta_regression_formula <- paste('rma.mv(log_response_ratio, selected_v, random = ~ 1 | publication/study)', sep = "")
                   meta_regression_predict <- paste('predict(model)', sep = "")
                 }
-                
+
                 # Save the results.
                 meta_regression_results <- list(meta_regression_summary = meta_regression_summary, meta_regression_formula = meta_regression_formula, meta_regression_results = meta_regression_results, meta_regression_predict = meta_regression_predict, moderators_df = moderators_df, effect_size = effect_size, ci.lb = ci.lb, ci.ub = ci.ub, pval = pval, QE = QE, QEp = QEp, direction = direction, percent = percent, lower_percent = lower_percent, upper_percent = upper_percent, n_publications = df_n_publications, n_citations = df_n_citations, n_rows = df_n_rows)
                 results$meta_regression_results <- meta_regression_results
-                
+
                 finish_time <- Sys.time()
                 print(finish_time - start_time)
-                
+
               } else {  # if (n_moderators == 0)
                 # No filters selected. Please select one or more filters.
               }
@@ -1614,7 +1614,7 @@ server <- function(input, output, session) {
             if (n_rows > 0) {
               results_by_study_df$citation[i] <- this_citation
               results_by_study_df$relevance_weight[i] <- mean(di$relevance_weight)
-              
+
               get_countries <- function() {
                 if (length(countries) > 1) {
                   countries <- sort(countries)
@@ -1641,7 +1641,7 @@ server <- function(input, output, session) {
               }
               countries <- unique(unlist(di$Country))
               country <- if(!is.null(countries)) { get_countries() }
-              
+
               get_designs <- function() {
                 if (length(designs) > 1) {
                   for (i in 1:length(designs)) {
@@ -1658,7 +1658,7 @@ server <- function(input, output, session) {
               }
               designs <- unique(unlist(di$Design))
               design <- if(!is.null(designs)) { get_designs() }
-              
+
               location <- unique(di$location)
               methods_text <- unique(unlist(di$methods))
               if (n_rows > 1) {
