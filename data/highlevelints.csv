@@ -1,0 +1,35 @@
+intervention,intervention_short,hli
+Biological control of invasive plants (vs no biological control),Biological control,Biological control
+Burning (non-crop habitats) (vs control),Burning,Physical control
+Burning (non-crop habitats) using a different method/tool,Burning,Physical control
+Burning at a different time or with a different frequency,Burning,Physical control
+"Burning invasive plants (also see ""burning"" in ""habitat management"" for habitat-wide interventions)",Burning,Physical control
+"Covering invasive plants (e.g., shading or using benthic barriers)",Covering,Physical control
+"Cutting and covering (e.g., shading)",Cutting and covering,Physical control
+Cutting and flooding,Cutting and flooding,Integrated control
+Cutting and replanting with native plants,Cutting and replanting,Integrated control
+Cutting and using a herbicide or mixture of herbicides,Cutting and herbicide,Integrated control
+"Cutting/chopping invasive plants (also see ""mowing"" for habitat-wide interventions)",Cutting,Physical control
+Decontaminating (vs control),Decontamination,Decontamination
+Digging/uprooting and replanting with native plants,Digging and replanting,Integrated control
+Digging/uprooting and using a herbicide or mixture of herbicides,Digging and herbicide,Integrated control
+Draining (non-crop habitats) vs control,Draining,Habitat management
+"Excluding grazers from an area (e.g., using fencing)",Excluding grazers,Habitat management
+Fertilizing/amending the soil (non-crop habitats) vs control,Soil amendment,Habitat management
+Flooding (non-crop habitats) vs control,Flooding,Habitat management
+Grazing (non-crop habitats) (vs control),Grazing,Habitat management
+Introducing grazers to a new area,Grazing,Habitat management
+"Invasive species management, n.e.c.",Invasive management,Other
+Mowing (non-crop habitats) (vs control),Mowing,Habitat management
+Plowing (vs control; i.e. vs no tillage),Plowing,Habitat management
+"Restoring habitats, n.e.c.",Habitat restoration,Habitat management
+"Uprooting/removing invasive plants (also see ""plowing"" for habitat-wide interventions)",Uprooting,Physical control
+Using a different method of applying herbicide,Herbicide,Chemical control
+Using a different method/tool for physical/mechanical control of invasive plants,Different physical control,Physical control
+Using a herbicide or mixture of herbicides,Herbicide,Chemical control
+Using more grazers (i.e. increasing the stocking rate),Grazing,Habitat management
+Integrated control of invasive plants (vs no integrated control),Integrated control vs no integrated control,Integrated control
+Integrated control of invasive plants using a different method/tool/species,Integrated control with a different method/tool/species,Integrated control
+"Integrated control of invasive plants, n.e.c.",Integrated control,Integrated control
+Mowing at a different time or with a different frequency,Mowing,Habitat management
+Planting (non-crop habitats) (vs control),Planting,Habitat management
