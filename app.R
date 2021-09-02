@@ -131,6 +131,7 @@ ui <- function(request) { fluidPage(
                        )
               ),
               tabPanel("Value judgements",
+                       mainPanel(
                        h1('Value judgements'),
                        HTML('<br />'),
                        HTML('Is it better for an outcome to increase or decrease as a result of an intervention?
@@ -148,7 +149,7 @@ ui <- function(request) { fluidPage(
                        HTML('<br />'),
                        h1('Settings'),
                        HTML('<br />'),
-                       uiOutput('outcome_filters')
+                       uiOutput('outcome_filters'))
               ),
         tabPanel("Advanced",
                  mainPanel(
@@ -176,12 +177,13 @@ ui <- function(request) { fluidPage(
                    verbatimTextOutput('subgroup_analysis_summary'),
                    HTML('<br />'))),
               tabPanel("Download data",
+                       mainPanel(
                        HTML('<br />'),
                        HTML('Download the data here to run your own analyses. If you have filtered
         the data, this will only download the data that you have filtered.'),
                        HTML('<br />'),
                        HTML('<br />'),
-                       downloadButton("downloadData", "Download CSV")
+                       downloadButton("downloadData", "Download CSV"))
               )
   ),
   HTML('</div>')
@@ -924,7 +926,7 @@ server <- function(input, output, session) {
     
     output$info_on <- renderText({
       if(input$info_switch){
-      paste0("Use the icons on the right to customise the information you are interested in. You can filter the data to your question of interest and choose the kind of comparisons you wish to make (e.g., compare the effect of an intervention on different species, or the effect of different interventions on one species). \nThe example figure below was generated on the effect of different interventions on the abundance of invasive species for several different invasive species. We suggest you first filter by the species you are interested in and different variables you are interested in comparing (e.g., interventions, outcomes, or countries) and press 'get your results', then start step-by-step to use more specific filters (e.g., specify countries, particular outcomes or intervention types) to update your results based on your local conditions and question of interest")
+      paste0("Use the icons on the right to customise the information you are interested in. You can filter the data to your question of interest and choose the kind of comparisons you wish to make (e.g., compare the effect of an intervention on different species, or the effect of different interventions on one species). \nThe example figure below was generated on the effect of different interventions on the abundance of invasive species for several different invasive species from studies conducted across several countries. We suggest you first filter by the species you are interested in and different variables you are interested in comparing (e.g., interventions, outcomes, or countries) and press 'get your results', then start step-by-step to use more specific filters (e.g., specify countries, particular outcomes, or intervention types) to update your results based on your local conditions and question of interest")
       }
     })
     
@@ -1938,7 +1940,7 @@ server <- function(input, output, session) {
   
 
   output$initial_plot <- renderImage({
-    list(src =  normalizePath('./figures/invsp_initialplot.png'), width = "50%", height = "50%", contentType = 'image/png')
+    list(src =  'figures/firstplot.svg', width = "50%", height = "50%", contentType = 'image/svg+xml')
   },deleteFile = FALSE)
   
   observeEvent(input$go, {
