@@ -1374,7 +1374,7 @@ server <- function(input, output, session) {
     read_data_from_cache <- rv[["read_data_from_cache"]]
     analysis_button <- rv[["analysis_button"]]
     cached_results <- paste(cache, "results_", digest(c(settings(), analysis_button)), ".rds", sep = "")
-
+    comparison_var <- input$comparison_var
     
     # df <- get_df()
     # df <- subset(df, es_and_v == TRUE)
@@ -1510,7 +1510,7 @@ server <- function(input, output, session) {
           # Subgroup analysis
           ###################
           results <- list()
-          comparison_var <- input$comparison_var
+
           
           if(comparison_var=="Country"){
             d1 <- d%>% pull(comparison_var)
@@ -2241,14 +2241,14 @@ server <- function(input, output, session) {
   
   
 
-  output$debug1 <- renderPrint(get_results() %...>% {
-         results <- .
-         cached_results_exists})
+  # output$debug1 <- renderPrint(get_results() %...>% {
+  #        results <- .
+  #        cached_results_exists})
   #output$debug2 <- renderPrint(sort(unique(unlist(df$Outcome))))
   #output$debug3 <- renderPrint(sort(unique(unlist(lapply(df$EAV_outcome, unlist)))))
 
-  output$debug3 <- renderPrint(digest(api_query_string))     # Hash for data folder on S3
-  output$debug2 <- renderPrint(digest(settings()))  # Hash for results and settings on S3
+  # output$debug3 <- renderPrint(digest(api_query_string))     # Hash for data folder on S3
+  # output$debug2 <- renderPrint(digest(settings()))  # Hash for results and settings on S3
   #output$debug3 <- renderPrint(settings())  # Settings (to be hashed)
   
   #output$debug1 <- renderPrint(gsub("[^[:alnum:]._]"," ",sort(unique(unlist(df$Intervention)))))
