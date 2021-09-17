@@ -130,7 +130,7 @@ ui <- function(request) { fluidPage(
                          HTML('</table>')
                        )
               ),
-              tabPanel("Value judgements",
+              tabPanel("Value judgements",mainPanel(
                        h1('Value judgements'),
                        HTML('<br />'),
                        HTML('Is it better for an outcome to increase or decrease as a result of an intervention?
@@ -148,7 +148,7 @@ ui <- function(request) { fluidPage(
                        HTML('<br />'),
                        h1('Settings'),
                        HTML('<br />'),
-                       uiOutput('outcome_filters')
+                       uiOutput('outcome_filters'))
               ),
         tabPanel("Advanced",
                  mainPanel(
@@ -176,12 +176,13 @@ ui <- function(request) { fluidPage(
                    verbatimTextOutput('subgroup_analysis_summary'),
                    HTML('<br />'))),
               tabPanel("Download data",
+                       mainPanel(
                        HTML('<br />'),
                        HTML('Download the data here to run your own analyses. If you have filtered
         the data, this will only download the data that you have filtered.'),
                        HTML('<br />'),
                        HTML('<br />'),
-                       downloadButton("downloadData", "Download CSV")
+                       downloadButton("downloadData", "Download CSV"))
               )
   ),
   HTML('</div>')
@@ -270,9 +271,10 @@ server <- function(input, output, session) {
     # (which requires the S3 credentials to be saved in a separate file, named "config.yml") you
     # should disable both parts of data caching by uncommenting these two lines:
     
+
     #read_data_from_cache <- FALSE
     #save_data_to_cache <- FALSE
-    
+
     
     # To run the Shiny app offline (e.g., to debug it), you should also specify the ID number for the
     # subject and optionally the intervention and/or outcome and/or publication you want to analyse.
@@ -1970,7 +1972,9 @@ server <- function(input, output, session) {
           n = results[[1]]$supergroup_results$n_citations
         )
         results_df <- rbind(do.call(rbind,subgroup_df_list), supergroup_df)
+
         results_df$citation <- factor(results_df$citation,levels=rev(sort(unique(results_df$citation))))
+
         results_df$comparison <- isolate(paste0("Different ", if(input[["comparison_var"]]=="hlo"){"Outcomes Categories"}, 
                                                 if(input[["comparison_var"]]=="hli"){"Intervention Categories"}, 
                                                 if(input[["comparison_var"]]=="Species"){"Species"},
@@ -2236,10 +2240,11 @@ server <- function(input, output, session) {
   
   
   
+
   #output$debug1 <- renderPrint(sort(unique(unlist(df$Intervention))))
   #output$debug2 <- renderPrint(sort(unique(unlist(df$Outcome))))
   #output$debug3 <- renderPrint(sort(unique(unlist(lapply(df$EAV_outcome, unlist)))))
-  
+
   #output$debug1 <- renderPrint(digest(api_query_string))     # Hash for data folder on S3
   #output$debug2 <- renderPrint(digest(settings()))  # Hash for results and settings on S3
   #output$debug3 <- renderPrint(settings())  # Settings (to be hashed)

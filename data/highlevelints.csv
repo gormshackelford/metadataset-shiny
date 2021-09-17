@@ -28,8 +28,16 @@ Using a different method of applying herbicide,Herbicide,Chemical control
 Using a different method/tool for physical/mechanical control of invasive plants,Different physical control,Physical control
 Using a herbicide or mixture of herbicides,Herbicide,Chemical control
 Using more grazers (i.e. increasing the stocking rate),Grazing,Habitat management
+<<<<<<< HEAD
 Planting (non-crop habitats) (vs control),Planting,Habitat management
 Integrated control of invasive plants (vs no integrated control),Integrated control invasives,Integrated control
 Integrated control of invasive plants using a different method/tool/species,Integrated control invasives different,Integrated control
 "Integrated control of invasive plants, n.e.c.",Integrated control invasives n.e.c.,Integrated control
 Mowing at a different time or with a different frequency,Mowing different,Habitat management
+=======
+Integrated control of invasive plants (vs no integrated control),Integrated control vs no integrated control,Integrated control
+Integrated control of invasive plants using a different method/tool/species,Integrated control with a different method/tool/species,Integrated control
+"Integrated control of invasive plants, n.e.c.",Integrated control,Integrated control
+Mowing at a different time or with a different frequency,Mowing,Habitat management
+Planting (non-crop habitats) (vs control),Planting,Habitat management
+>>>>>>> dda995c5592cf2a0a291bc2d840dbc0ac50fab98
