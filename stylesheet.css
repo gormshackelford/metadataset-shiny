@@ -10,13 +10,23 @@ body {
 
 h1 {
   font-family: "Noto Serif", serif;
-  font-size: 30px;
+  font-size: 27px;
+  font-weight: bold;
   line-height: 42px;
 }
 
 h2 {
   font-family: "Noto Serif", serif;
-  font-size: 21px;
+  font-size: 20px;
+  font-weight: bold;
+  line-height: 42px;
+  margin: 0;
+}
+
+h3 {
+  font-family: "Noto Serif", serif;
+  font-size: 16px;
+  font-weight: bold;
   line-height: 42px;
   margin: 0;
 }
@@ -32,13 +42,22 @@ a:hover {
 }
 
 div.col-sm-4 {
-  padding-top: 15px;
+  padding-top: 5px;
+  padding-left: 10px;
+  padding-right: 10px;
 }
 
 div.col-sm-8 {
-  padding-top: 15px;
-  padding-left: 15px;
-  padding-right: 0px;
+  padding-top: 5px;
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+div.col-sm-12 {
+  padding-top: 5px;
+  padding-left: 10px;
+  padding-right: 10px;
+  padding-bottom: 5px;
 }
 
 div.shiny-notification {
@@ -74,20 +93,74 @@ td.padding-left {
   padding-left: 3em;
 }
 
+.icon-rotate-flip {
+ -o-transform: rotate(90deg) scaleX(-1);
+ -moz-transform: rotate(90deg) scaleX(-1);
+ -ms-transform: rotate(90deg) scaleX(-1); /* IE 9 */
+ -webkit-transform: rotate(90deg) scaleX(-1); /* Chrome, Safari, Opera */
+ transform: rotate(90deg) scaleX(-1);
+   filter: FlipH;
+  -ms-filter: "FlipH";
+}
+
+/* Make text visible on inputs */
+.shiny-input-container {
+  color: #474747;
+}
+
 #bookmark_link {
   overflow-wrap: break-word;
   word-wrap: break-word;
   word-break: break-word;
 }
 
-#column-left {
-  background-color: #f5f5f5;
-  border: solid 1px #e3e3e3;
-  border-radius: 4px;
+#tab-panel {
+  background-color:  #ffffff;
+  border: solid #f5f5f5;
+  border-radius: 25px;
+  padding-left: 30px;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  margin-top: -7px;
 }
 
-#column-right {
+#col-central {
+  margin-top: 20px;
+  background-color: rgba(0, 0, 0, 0);
+  border: solid #f5f5f5;
+  border-radius: 25px;
+  padding-bottom: -20px;
   padding-left: 30px;
+  padding-top: 5px;
+}
+
+#col-left {
+  margin-top: 20px;
+  margin-left: -30px;
+  margin-right: 30px;
+  margin-bottom: 10px;
+  background-color:  rgba(116, 213, 192, 0.6);
+  border: solid #f5f5f5;
+  border-radius: 15px 50px;
+  padding-left: 30px;
+  padding-top: 5px;
+  padding-bottom: -10px;
+}
+
+#row-top {
+  background-color: #f5f5f5;
+}
+
+#row-middle1 {
+  background-color: #f5f5f5;
+}
+
+#row-middle2 {
+  background-color: #f5f5f5;
+}
+
+#row-bottom {
+  background-color: #f5f5f5;
 }
 
 #downloadData {
@@ -100,6 +173,7 @@ td.padding-left {
   bottom: 15px;
   padding-left: 0px;
 }
+
 
 #click_blocker {
   position: fixed;
