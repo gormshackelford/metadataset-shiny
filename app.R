@@ -34,7 +34,7 @@ library(future)    # Tested with version 1.17.0
 library(shinyWidgets)
 library(cowplot)
 library(shinyBS)
-#plan(multisession)
+plan(multisession)
 
 options(warn = -1)     # Suppress warnings.
 options(scipen = 999)  # Suppress scientific notation (e.g., 1e10).
@@ -1003,9 +1003,9 @@ server <- function(input, output, session) {
   observeEvent(input$go, {
     rv[["analysis_button"]] <- "subgroup_analysis"
   })
-  observeEvent(input$meta_regression_go, {
-    rv[["analysis_button"]] <- "meta_regression"
-  })
+  # observeEvent(input$meta_regression_go, {
+  #   rv[["analysis_button"]] <- "meta_regression"
+  # })
   
   
   
@@ -2241,12 +2241,14 @@ server <- function(input, output, session) {
   
   
 
-  #output$debug1 <- renderPrint(sort(unique(unlist(df$Intervention))))
+  output$debug1 <- renderPrint(get_results() %...>% {
+         results <- .
+         cached_results_exists})
   #output$debug2 <- renderPrint(sort(unique(unlist(df$Outcome))))
   #output$debug3 <- renderPrint(sort(unique(unlist(lapply(df$EAV_outcome, unlist)))))
 
-  #output$debug1 <- renderPrint(digest(api_query_string))     # Hash for data folder on S3
-  #output$debug2 <- renderPrint(digest(settings()))  # Hash for results and settings on S3
+  output$debug3 <- renderPrint(digest(api_query_string))     # Hash for data folder on S3
+  output$debug2 <- renderPrint(digest(settings()))  # Hash for results and settings on S3
   #output$debug3 <- renderPrint(settings())  # Settings (to be hashed)
   
   #output$debug1 <- renderPrint(gsub("[^[:alnum:]._]"," ",sort(unique(unlist(df$Intervention)))))
