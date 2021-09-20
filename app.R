@@ -10,7 +10,7 @@
 # To run this Shiny app offline (e.g., on your computer), without caching, you do not need access to
 # an AWS S3 bucket, but you will need to set the options, below, under the heading for
 # "Running this Shiny app offline, without caching".
-
+set.seed(123)
 # This code was tested with R version version 3.6.3 and the following R packages.
 library(aws.s3)    # Tested with version 0.3.21
 library(config)    # Tested with version 0.3
@@ -847,7 +847,8 @@ server <- function(input, output, session) {
           enter = animations$fading_entrances$fadeInLeftBig,
           exit = animations$fading_exits$fadeOutLeftBig
         ),
-        tooltip = tooltipOptions(title = "Click here to filter the data for your question of interest.")
+        tooltip = tooltipOptions(title = "Click here to filter the data for your question of interest."),
+        inputId = 'filterbtn'
       )
       )
     })
@@ -866,7 +867,8 @@ server <- function(input, output, session) {
           enter = animations$fading_entrances$fadeInLeftBig,
           exit = animations$fading_exits$fadeOutLeftBig
         ),
-        tooltip = tooltipOptions(title = "Click here to select which factor to compare (i.e., y-axis comparison groups).")
+        tooltip = tooltipOptions(title = "Click here to select which factor to compare (i.e., y-axis comparison groups)."),
+        inputId = 'comparebtn'
       )
       )
     })
@@ -919,7 +921,8 @@ server <- function(input, output, session) {
         enter = animations$fading_entrances$fadeInLeftBig,
         exit = animations$fading_exits$fadeOutLeftBig
       ),
-      tooltip = tooltipOptions(title = "Click here to change default settings for meta-analysis.")
+      tooltip = tooltipOptions(title = "Click here to change default settings for meta-analysis."),
+      inputId = 'settingsbtn'
       )
       )
     })
@@ -1394,6 +1397,7 @@ server <- function(input, output, session) {
       cached_results_exists <- FALSE
       if (read_data_from_cache == TRUE) {
         cached_results_exists <- object_exists(cached_results, s3_bucket, check_region=TRUE)
+        print(cached_results)
       }
       if (cached_results_exists) {
         results <- s3readRDS(cached_results, s3_bucket, check_region=TRUE)
@@ -2241,9 +2245,9 @@ server <- function(input, output, session) {
   
   
 
-  # output$debug1 <- renderPrint(get_results() %...>% {
-  #        results <- .
-  #        cached_results_exists})
+  # output$debug1 <- renderPrint({
+  #        cached_results_exists
+  #        })
   #output$debug2 <- renderPrint(sort(unique(unlist(df$Outcome))))
   #output$debug3 <- renderPrint(sort(unique(unlist(lapply(df$EAV_outcome, unlist)))))
 
