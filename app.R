@@ -89,14 +89,15 @@ ui <- function(request) { fluidPage(
                          HTML('<br />'),
                          uiOutput('refresh_button'),
                          HTML('<br />'),
-                         uiOutput('debug1'),
-                         uiOutput('debug2'),
-                         uiOutput('debug3'),
+                         #uiOutput('debug1'),
+                         #uiOutput('debug2'),
+                         #uiOutput('debug3'),
+                         uiOutput("selected_filters"),
                          HTML('</div>'),
                          HTML('<div class="col-sm-8" id="col-central">'),
                          HTML('<h1> Your custom analysis </h1>'),
                          materialSwitch('info_switch','Help',value=TRUE,status='info'),
-                         textOutput("info_on"),
+                         uiOutput("info_on"),
                          HTML('<br />'),
                          imageOutput('initial_plot',inline=TRUE),
                          imageOutput('subgroup_analysis_plot', inline = TRUE),
@@ -813,72 +814,103 @@ server <- function(input, output, session) {
     
     incProgress(0.20)
     
-    
-    
-    
     # Selectors for attributes
     attributes_df$encoded_attribute <- gsub("[^[:alnum:]._]", ".", attributes_df$attribute)  # Delete non-alphanumeric characters (except periods and underscores)
     
-    output$dropdownbutton_filter <- renderUI({
-      optionshlo <- sort(unique(unlist(df[["hlo"]])))
-      optionsSpecies <- sort(unique(unlist(df[["Species"]])))
-      optionshli <- sort(unique(unlist(df[["hli"]])))
-      optionscountry <- sort(unique(unlist(df[["Country"]])))
-      tagList(dropdown(HTML('<div class="col-sm-12">'),
-        tags$p("Pick a dropdown menu and select filter(s). Then update filters to see what data is available for the other filters, or reset filters if you want to restart. Once you press run or update analysis, you'll need to press the refresh symbol at the bottom of the blue box if you want to start over with the full dataset."),
-        tags$br(),
-        pickerInput("hlo", "Outcome category", choices=optionshlo,multiple=TRUE,
-                    options = list(`actions-box` = TRUE)),
-        pickerInput("Species", "Species", choices=optionsSpecies,multiple=TRUE,
-                    options = list(`actions-box` = TRUE)),
-        pickerInput("hli", "Intervention category", choices=optionshli,multiple=TRUE,
-                    options = list(`actions-box` = TRUE)),
-        pickerInput("Country", "Country", choices=optionscountry,multiple=TRUE,
-                    options = list(`actions-box` = TRUE)),
-        tags$br(),
-        actionButton("update_filters", "Update filters"),
-        actionButton("refresh_filters", "Reset filters"),
-        tags$br(),
-        tags$br(),
-        HTML('</div>'),
-        style = "unite", icon = icon("filter"),size="lg",circle=FALSE,label="Filter",
-        status = "danger", width = "450px",
-        animate = animateOptions(
-          enter = animations$fading_entrances$fadeInLeftBig,
-          exit = animations$fading_exits$fadeOutLeftBig
-        ),
-        tooltip = tooltipOptions(title = "Click here to filter the data for your question of interest."),
-        inputId = 'filterbtn'
-      )
-      )
-    })
+    # Outcomes
+    outcomes <- sort(unique(unlist(df$outcome)))
+    encoded_outcomes <- gsub("[^[:alnum:]_]", "", outcomes)  # Delete non-alphanumeric characters (except underscores)
     
-    output$dropdownbutton_compare <- renderUI({
-      options_var <- c("Outcome categories"="hlo","Species"="Species","Intervention categories"="hli","Country"="Country")
-      tagList(dropdown(HTML('<div class="col-sm-12">'),
-        tags$br(),
-        pickerInput("comparison_var", "Comparison variable", choices=options_var, multiple = FALSE),
-        tags$br(),
-        tags$br(),
-        HTML('</div>'),
-        style = "unite", icon = icon("chart-bar",class="icon-rotate-flip"),size="lg",circle=FALSE,label="Comparison variables",
-        status = "primary", width = "450px",
-        animate = animateOptions(
-          enter = animations$fading_entrances$fadeInLeftBig,
-          exit = animations$fading_exits$fadeOutLeftBig
-        ),
-        tooltip = tooltipOptions(title = "Click here to select which factor to compare (i.e., y-axis comparison groups)."),
-        inputId = 'comparebtn'
-      )
-      )
-    })
+    # Save a copy of this df, so that we can revert to it later.
+    original_df <- df
     
-    output$dropdownbutton_settings <- renderUI({
-      tagList(
-        dropdown(
-          HTML('<div class="col-sm-12">'),
-          h2('Main settings'),
-          sliderInput(
+  })  # End of withProgress() for data loading
+  
+  
+  
+  
+  # Use bookmarked settings, if they exist
+  # if (bookmark != "") {
+  #   bookmarked_settings <- paste("bookmarks_for_", cache, "settings_", bookmark, ".rds", sep = "")
+  #   bookmarked_settings <- s3readRDS(bookmarked_settings, s3_bucket, check_region=TRUE)
+  #   updateSelectInput(session, "column_names", selected = bookmarked_settings[["column_names"]])
+  #   updateSliderInput(session, "significant_p", value = bookmarked_settings[["significant_p"]])
+  #   updateSliderInput(session, "non_significant_p", value = bookmarked_settings[["non_significant_p"]])
+  #   updateCheckboxInput(session, "v_from_p", value = bookmarked_settings[["v_from_p"]])
+  #   updateCheckboxInput(session, "v_outliers", value = bookmarked_settings[["v_outliers"]])
+  #   updateSliderInput(session, "v_outliers_threshold", value = bookmarked_settings[["v_outliers_threshold"]])
+  #   updateCheckboxInput(session, "impute_v", value = bookmarked_settings[["impute_v"]])
+  #   for (this_attribute in attributes_df$encoded_attribute) {
+  #     updatePickerInput(session, this_attribute, selected = bookmarked_settings[[this_attribute]])
+  #   }
+  #   for (this_outcome in encoded_outcomes) {
+  #     updateCheckboxInput(session, this_outcome, value = bookmarked_settings[[this_outcome]])
+  #   }
+  # }
+  
+  ###################################################################################################
+  # Reactive components
+  ###################################################################################################
+  output$dropdownbutton_filter <- renderUI({
+    optionshlo <- sort(unique(unlist(df[["hlo"]])))
+    optionsSpecies <- sort(unique(unlist(df[["Species"]])))
+    optionshli <- sort(unique(unlist(df[["hli"]])))
+    optionscountry <- sort(unique(unlist(df[["Country"]])))
+    tagList(dropdown(HTML('<div class="col-sm-12">'),
+                     tags$p("Pick a dropdown menu and select filter(s). Then update filters to see what data is available for the other filters, or reset filters if you want to restart. Once you press run or update analysis, you'll need to press the refresh symbol at the bottom of the blue box if you want to start over with the full dataset."),
+                     tags$br(),
+                     pickerInput("hlo", "Outcome category", choices=optionshlo,multiple=TRUE,
+                                 options = list(`actions-box` = TRUE)),
+                     pickerInput("Species", "Species", choices=optionsSpecies,multiple=TRUE,
+                                 options = list(`actions-box` = TRUE)),
+                     pickerInput("hli", "Intervention category", choices=optionshli,multiple=TRUE,
+                                 options = list(`actions-box` = TRUE)),
+                     pickerInput("Country", "Country", choices=optionscountry,multiple=TRUE,
+                                 options = list(`actions-box` = TRUE)),
+                     tags$br(),
+                     actionButton("update_filters", "Update filters"),
+                     actionButton("refresh_filters", "Reset filters"),
+                     tags$br(),
+                     tags$br(),
+                     HTML('</div>'),
+                     style = "unite", icon = icon("filter"),size="lg",circle=FALSE,label="Filter",
+                     status = "danger", width = "450px",
+                     animate = animateOptions(
+                       enter = animations$fading_entrances$fadeInLeftBig,
+                       exit = animations$fading_exits$fadeOutLeftBig
+                     ),
+                     tooltip = tooltipOptions(title = "Click here to filter the data for your question of interest."),
+                     inputId = 'filterbtn'
+    )
+    )
+  })
+  
+  output$dropdownbutton_compare <- renderUI({
+    options_var <- c("Outcome categories"="hlo","Species"="Species","Intervention categories"="hli","Country"="Country")
+    tagList(dropdown(HTML('<div class="col-sm-12">'),
+                     tags$br(),
+                     pickerInput("comparison_var", "Comparison variable", choices=options_var, multiple = FALSE),
+                     tags$br(),
+                     tags$br(),
+                     HTML('</div>'),
+                     style = "unite", icon = icon("chart-bar",class="icon-rotate-flip"),size="lg",circle=FALSE,label="Comparison variables",
+                     status = "primary", width = "450px",
+                     animate = animateOptions(
+                       enter = animations$fading_entrances$fadeInLeftBig,
+                       exit = animations$fading_exits$fadeOutLeftBig
+                     ),
+                     tooltip = tooltipOptions(title = "Click here to select which factor to compare (i.e., y-axis comparison groups)."),
+                     inputId = 'comparebtn'
+    )
+    )
+  })
+  
+  output$dropdownbutton_settings <- renderUI({
+    tagList(
+      dropdown(
+        HTML('<div class="col-sm-12">'),
+        h2('Main settings'),
+        sliderInput(
           "significant_p", 'Assumed p-value for comparisons reported as "significant" or "p < 0.05"',
           min = 0.0001, max = 0.05, value = 0.025, step = 0.001
         ),
@@ -915,63 +947,55 @@ server <- function(input, output, session) {
         HTML('<br />'),
         HTML('<br />'),
         HTML('</div>'),
-      style = "unite", icon = icon("cog"),size="lg",circle=FALSE,label="Settings",
-      status = "royal", width = "450px",
-      animate = animateOptions(
-        enter = animations$fading_entrances$fadeInLeftBig,
-        exit = animations$fading_exits$fadeOutLeftBig
-      ),
-      tooltip = tooltipOptions(title = "Click here to change default settings for meta-analysis."),
-      inputId = 'settingsbtn'
+        style = "unite", icon = icon("cog"),size="lg",circle=FALSE,label="Settings",
+        status = "royal", width = "450px",
+        animate = animateOptions(
+          enter = animations$fading_entrances$fadeInLeftBig,
+          exit = animations$fading_exits$fadeOutLeftBig
+        ),
+        tooltip = tooltipOptions(title = "Click here to change default settings for meta-analysis."),
+        inputId = 'settingsbtn'
       )
+    )
+  })
+  
+  output$info_on <- renderUI({
+    if(input$info_switch){
+      tagList(
+        HTML("<p>Use the icons on the right to customise the information you are interested in. You can filter the data to your question of interest and choose the kind of comparisons you wish to make (e.g., compare the effect of an intervention on different species, or the effect of different interventions on one species). The example figure below was generated on the effect of different interventions on the abundance of invasive species for several different invasive species.</p>"),
+        HTML("<p>We suggest you first filter by the <em>species</em> and <em>outcomes</em> you are interested in, and then select the different <em>comparison variables</em> you wish to look across (e.g., compare different species, interventions, outcomes, or countries). Then press <em>'get your results'</em>. A plot will load with a summary paragraph, and you can access more detailed information by clicking on the tabs at the top of the page. We then suggest you start step-by-step to use more specific filters (e.g., specify countries or particular intervention types) to update your results based on your local conditions and question of interest</p>")
       )
-    })
-    
-    output$info_on <- renderText({
-      if(input$info_switch){
-      paste0("Use the icons on the right to customise the information you are interested in. You can filter the data to your question of interest and choose the kind of comparisons you wish to make (e.g., compare the effect of an intervention on different species, or the effect of different interventions on one species). \nThe example figure below was generated on the effect of different interventions on the abundance of invasive species for several different invasive species. We suggest you first filter by the species you are interested in and different variables you are interested in comparing (e.g., interventions, outcomes, or countries) and press 'get your results', then start step-by-step to use more specific filters (e.g., specify countries, particular outcomes or intervention types) to update your results based on your local conditions and question of interest")
-      }
-    })
-    
-    
-    # Outcomes
-    outcomes <- sort(unique(unlist(df$outcome)))
-    encoded_outcomes <- gsub("[^[:alnum:]_]", "", outcomes)  # Delete non-alphanumeric characters (except underscores)
-    
-    # Save a copy of this df, so that we can revert to it later.
-    original_df <- df
-    
-  })  # End of withProgress() for data loading
+    }
+  })
   
-  
-  
-  
-  # Use bookmarked settings, if they exist
-  # if (bookmark != "") {
-  #   bookmarked_settings <- paste("bookmarks_for_", cache, "settings_", bookmark, ".rds", sep = "")
-  #   bookmarked_settings <- s3readRDS(bookmarked_settings, s3_bucket, check_region=TRUE)
-  #   updateSelectInput(session, "column_names", selected = bookmarked_settings[["column_names"]])
-  #   updateSliderInput(session, "significant_p", value = bookmarked_settings[["significant_p"]])
-  #   updateSliderInput(session, "non_significant_p", value = bookmarked_settings[["non_significant_p"]])
-  #   updateCheckboxInput(session, "v_from_p", value = bookmarked_settings[["v_from_p"]])
-  #   updateCheckboxInput(session, "v_outliers", value = bookmarked_settings[["v_outliers"]])
-  #   updateSliderInput(session, "v_outliers_threshold", value = bookmarked_settings[["v_outliers_threshold"]])
-  #   updateCheckboxInput(session, "impute_v", value = bookmarked_settings[["impute_v"]])
-  #   for (this_attribute in attributes_df$encoded_attribute) {
-  #     updatePickerInput(session, this_attribute, selected = bookmarked_settings[[this_attribute]])
-  #   }
-  #   for (this_outcome in encoded_outcomes) {
-  #     updateCheckboxInput(session, this_outcome, value = bookmarked_settings[[this_outcome]])
-  #   }
-  # }
-  
-  
-  
-  
-  ###################################################################################################
-  # Reactive components
-  ###################################################################################################
-  
+  output$selected_filters <- renderUI({
+    if(input$go){
+    tagList(
+      HTML("<h2> Applied filters </h3>"),
+      HTML("<h3> Species <h4>"),
+      paste(paste(input[["Species"]],collapse=", "),".",sep=""),
+      HTML("<br>"),
+      HTML("<h3> Intervention types <h4>"),
+      paste(paste(input[["hli"]],collapse=", "),".",sep=""),
+      HTML("<br>"),
+      HTML("<h3> Outcome types <h4>"),
+      paste(paste(input[["hlo"]],collapse=", "),".",sep=""),
+      HTML("<br>"),
+      HTML("<h3> Countries <h4>"),
+      paste(paste(input[["Country"]],collapse=", "),".",sep=""),
+      HTML("<br>"),
+      HTML("<br>"),
+      HTML("<h3> Comparison variable </h3>"),
+      paste0(if(input[["comparison_var"]]=="hlo"){"Outcome type"} 
+             else{
+               if(input[["comparison_var"]]=="hli"){"Intervention type"}
+               else{input[["comparison_var"]]}
+             },"."),
+      HTML("<br>"),
+      HTML("<br>")
+    )
+    }
+  })
   
   
   
@@ -1397,7 +1421,6 @@ server <- function(input, output, session) {
       cached_results_exists <- FALSE
       if (read_data_from_cache == TRUE) {
         cached_results_exists <- object_exists(cached_results, s3_bucket, check_region=TRUE)
-        print(cached_results)
       }
       if (cached_results_exists) {
         results <- s3readRDS(cached_results, s3_bucket, check_region=TRUE)
@@ -1944,7 +1967,7 @@ server <- function(input, output, session) {
   
 
   output$initial_plot <- renderImage({
-    list(src =  normalizePath('./figures/invsp_initialplot.png'), width = "50%", height = "50%", contentType = 'image/png')
+    list(src =  normalizePath('./figures/firstplot.svg'), width = "50%", height = "50%", contentType = 'image/svg+xml')
   },deleteFile = FALSE)
   
   observeEvent(input$go, {
