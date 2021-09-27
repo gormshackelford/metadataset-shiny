@@ -971,22 +971,22 @@ server <- function(input, output, session) {
   output$selected_filters <- renderUI({
     if(input$go){
     tagList(
-      HTML("<h2> Applied filters </h3>"),
-      HTML("<h3> Species <h4>"),
+      HTML("<h2> Applied filters </h2>"),
+      HTML("<h3> Species </h3>"),
       paste(paste(input[["Species"]],collapse=", "),".",sep=""),
       HTML("<br>"),
-      HTML("<h3> Intervention types <h4>"),
+      HTML("<h3> Intervention types </h3>"),
       paste(paste(input[["hli"]],collapse=", "),".",sep=""),
       HTML("<br>"),
-      HTML("<h3> Outcome types <h4>"),
+      HTML("<h3> Outcome types </h3>"),
       paste(paste(input[["hlo"]],collapse=", "),".",sep=""),
       HTML("<br>"),
-      HTML("<h3> Countries <h4>"),
+      HTML("<h3> Countries </h3>"),
       paste(paste(input[["Country"]],collapse=", "),".",sep=""),
       HTML("<br>"),
       HTML("<br>"),
       HTML("<h3> Comparison variable </h3>"),
-      paste0(if(input[["comparison_var"]]=="hlo"){"Outcome type"} 
+      paste(if(input[["comparison_var"]]=="hlo"){"Outcome type"} 
              else{
                if(input[["comparison_var"]]=="hli"){"Intervention type"}
                else{input[["comparison_var"]]}
