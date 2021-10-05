@@ -124,7 +124,9 @@ ui <- function(request) { fluidPage(
         #       ),
               tabPanel("Study summaries and weights",
                        mainPanel(
-                         h1('Study summaries'),
+                         h1('Study summaries and weights'),
+                         HTML('<p>Here you can view summaries for each study within the filtered data you have selected (this will appear once you click "Get your results" in the first tab). You can also see on the right there is a slider which determines the weight that each study has in the analysis. The greater the weight, the more influence the study has on the overall result. 
+                           This gives you the ability to "calibrate" the meta-analysis by up-weighting or down-weighting studies that you feel are more or less relevant to your local context. We would advise that you read this <a target="_blank" href="https://doi.org/10.1186/s12915-021-00974-w">paper</a> before using this weighting so you fully understand what it does (or ask us for help and arrange a session to work through this tool with you).</p>'),
                          HTML('<br />'),
                          HTML('<table>'),
                          uiOutput('summaries'),
@@ -136,7 +138,7 @@ ui <- function(request) { fluidPage(
                        HTML('<br />'),
                        HTML('Is it better for an outcome to increase or decrease as a result of an intervention?
           The default setting is that "increase is better". You will need to adjust this setting
-          for some outcomes. For example, a decrease in soil erosion is probably better than an
+          for some outcomes (specific outcomes will be displayed below based on the filters you select in the first tab). For example, a decrease in soil erosion is probably better than an
           increase. However, this value judgement will probably be more complicated for some
           outcomes.
           <br />
@@ -153,6 +155,8 @@ ui <- function(request) { fluidPage(
               ),
         tabPanel("Advanced",
                  mainPanel(
+                   HTML('<br />'),
+                   p('(Plots and outputs will appear below once you click "Get your results" in the first tab).'),
                    h1('Forest plot'),
                    p("This plot shows the results (effect size and confidence intervals) of individual studies for all filtered data."),
                    HTML('<br />'),
@@ -964,7 +968,7 @@ server <- function(input, output, session) {
       tagList(
         HTML("<p>Use the icons on the right to customise the information you are interested in. You can filter the data to your question of interest and choose the kind of comparisons you wish to make (e.g., compare the effect of an intervention on different species, or the effect of different interventions on one species). The example figure below was generated on the effect of different interventions on the abundance of invasive species for several different invasive species.</p>"),
         HTML("<p>We suggest you first filter by the <em>species</em> and <em>outcomes</em> you are interested in, and then select the different <em>comparison variables</em> you wish to look across (e.g., compare different species, interventions, outcomes, or countries). Each time you select a filter, make sure to press update filters so you get an up-to-date view of the data available.</p>
-              <p>Then once you are happy with your first broad set of filters, press <em>'Get your results'</em>. A plot will load with a summary paragraph, and you can access more detailed information by clicking on the tabs at the top of the page. We then suggest you start step-by-step to use more specific filters (e.g., specify countries or particular intervention types) to narrow down the filters and results to reflect your local conditions and question of interest.</p>")
+              <p>Then once you are happy with your first broad set of filters, press <em>'Get your results'</em>. A plot will load with a summary paragraph, and you can access more detailed information by clicking on the tabs at the top of the page. We then suggest you start step-by-step to use more specific filters (e.g., specify countries or particular intervention types) to narrow down the filters and results to reflect your local conditions and question of interest. (You can hide and unhide these help paragraphs by toggling the switch above).</p>")
       )
     }
   })
