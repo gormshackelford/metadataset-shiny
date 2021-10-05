@@ -287,7 +287,7 @@ server <- function(input, output, session) {
     # example of how you should specify the ID numbers:
     
     # Examples for cover crops
-    subject <- "3"        # Cover crops (subject)
+    #subject <- "3"        # Cover crops (subject)
     #intervention <- "91"  # Cover cropping (intervention)
     #outcome <- "4"        # Crop yield (outcome)
     subject_name <- gsub("(^|[[:space:]])([[:alpha:]])", "\\1\\U\\2",    # Uppercase with Base R
