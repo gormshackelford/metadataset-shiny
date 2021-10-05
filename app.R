@@ -986,7 +986,7 @@ server <- function(input, output, session) {
       HTML("<br>"),
       HTML("<br>"),
       HTML("<h3> Comparison variable </h3>"),
-      paste(if(input[["comparison_var"]]=="hlo"){"Outcome type"} 
+      paste0(if(input[["comparison_var"]]=="hlo"){"Outcome type"} 
              else{
                if(input[["comparison_var"]]=="hli"){"Intervention type"}
                else{input[["comparison_var"]]}
