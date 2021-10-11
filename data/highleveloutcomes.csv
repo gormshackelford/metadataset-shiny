@@ -1,32 +1,42 @@
 outcome,outcome_short,hlo
+Bird abundance,Bird abundance,Animal abundance
+Bird diversity,Bird diversity,Animal diversity
 Cation exchange capacity (CEC),Cation exchange capacity,Cation exchange capacity
 Electrical conductivity (EC),Electrical conductivity,Electrical conductivity
 Fish abundance,Fish abundance,Animal abundance
 Fish size and growth rate,Fish size,Animal condition
 Fungi abundance (including mycorrhizae),Fungi abundance,Fungi abundance
 Fungi diversity (including mycorrhizae),Fungi diversity,Fungi diversity
+Invertebrate abundance,Invertebrate abundance,Animal abundance
+Invertebrate diversity,Invertebrate diversity,Animal diversity
+Nematodes (not including pests),Invertebrate abundance,Animal abundance
+"Nitrogen (N, including ammonium [NH4+] and nitrate [NO3-] in soils)",Soil nitrogen,Soil nitrogen
+Nutrients,Soil nutrients,Soil nutrients
+Oxygen,Water oxygen,Water oxygen
+pH,Soil pH,Soil pH
+Phosphorus (P) in soils,Soil phosphorus,Soil phosphorus
+Plant abundance (weeds and invasive species),Plant abundance,Plant abundance
+Plant biomass,Plant biomass,Plant abundance
 Plant biomass (weeds and invasive species),Invasive biomass,Invasive abundance
 "Plant condition (weeds and invasive species), n.e.c.",Invasive condition,Invasive condition
+Plant cover,Plant cover,Plant abundance
 Plant cover (weeds and invasive species),Invasive cover,Invasive abundance
 "Plant damage, infection, and infestation (weeds and invasive species)",Invasive damage,Invasive condition
-Plant density (weeds and invasive species),Invasive density,Invasive abundance
-"Plant fecundity (weeds and invasive species) (e.g., seed banks and germination rates)",Invasive fecundity,Invasive fecundity
-Plant mortality (weeds and invasive species),Invasive mortality,Invasive condition
-"Plant occurrence (weeds and invasive species) (e.g., presence/absence)",Invasive occurence,Invasive abundance
-Plant size and growth rate (weeds and invasive species),Invasive size,Invasive condition
-Plant survivorship (weeds and invasive species),Invasive survival,Invasive condition
-Invertebrate abundance,Invertebrate abundance,Animal abundance
-Nematodes (not including pests),Invertebrate abundance,Animal abundance
-Invertebrate diversity,Invertebrate diversity,Animal diversity
-Plant biomass,Plant biomass,Plant abundance
-Plant cover,Plant cover,Plant abundance
 Plant density,Plant density,Plant abundance
+Plant density (weeds and invasive species),Invasive density,Invasive abundance
 "Plant diversity (e.g., species richness, alpha diversity, etc.)",Plant diversity,Plant diversity
 Plant evenness,Plant evenness,Plant diversity
 "Plant fecundity (e.g., seed banks and germination rates)",Plant fecundity,Plant fecundity
+"Plant fecundity (weeds and invasive species) (e.g., seed banks and germination rates)",Invasive fecundity,Invasive fecundity
 Plant mortality,Plant mortality,Plant condition
+Plant mortality (weeds and invasive species),Invasive mortality,Invasive condition
+"Plant occurrence (weeds and invasive species) (e.g., presence/absence)",Invasive occurence,Invasive abundance
 Plant size and growth rate,Plant size,Plant condition
+Plant size and growth rate (weeds and invasive species),Invasive size,Invasive condition
 Plant survivorship,Plant survival,Plant condition
+Plant survivorship (weeds and invasive species),Invasive survival,Invasive condition
+Potassium (K) in soils,Soil potassium,Soil potassium
+Reptile abundance,Reptile abundance,Animal abundance
 Soil bulk density,Soil bulk density,Soil bulk density
 Soil elements,Soil elements,Soil elements
 Soil enzyme abundance,Soil enzymes,Soil enzymes
@@ -35,29 +45,50 @@ Soil formation (including leaf litter production),Soil formation,Soil formation
 Soil microbial biomass,Soil microbial biomass,Soil microbial biomass
 "Soil micronutrients and secondary nutrients (e.g., calcium [Ca] and magnesium [Mg])",Soil micronutrients,Soil micronutrients
 Soil mineralization (decomposition from organic to inorganic forms),Soil mineralisation,Soil mineralisation
-"Nitrogen (N, including ammonium [NH4+] and nitrate [NO3-] in soils)",Soil nitrogen,Soil nitrogen
-Nutrients,Soil nutrients,Soil nutrients
 Soil organic carbon (SOC),Soil organic carbon,Soil organic carbon
 Soil organic matter (SOM),Soil organic matter,Soil organic matter
 Soil organic matter (SOM) and soil carbon (C),Soil organic matter,Soil organic matter
-pH,Soil pH,Soil pH
-Soil pH,Soil pH,Soil pH
-Phosphorus (P) in soils,Soil phosphorus,Soil phosphorus
-Potassium (K) in soils,Soil potassium,Soil potassium
 Soil oxidation/reduction potential (redox potential),Soil redox potential,Soil redox
+Soil pH,Soil pH,Soil pH
 "Soil respiration (also see ""pollutants (including greenhouse gases)"")",Soil respiration,Soil respiration
 Soil salinity (including sodium [Na]),Soil salinity,Soil salinity
 Soil temperature,Soil temperature,Soil temperature
 "Soil texture (i.e. sand, silt, and clay content)",Soil texture,Soil texture
 Soil water content,Soil water content,Soil water content
 Water chemistry,Water chemistry,Water chemistry
-Oxygen,Water oxygen,Water oxygen
 Water quality,Water quality,Water quality
 Water velocity,Water velocity,Water velocity
-Plant abundance (weeds and invasive species),Plant abundance,Plant abundance
-<<<<<<< HEAD
-=======
-Reptile abundance,Reptile abundance,Animal abundance
-Bird abundance,Bird abundance,Animal abundance
-Bird diversity,Bird diversity,Animal diversity
->>>>>>> dda995c5592cf2a0a291bc2d840dbc0ac50fab98
+Abundance of invertebrates as natural enemies of crop pests,Abundance pest enemies,Abundance of invertebrate enemies of crop pests
+Area-time equivalency ratio (ATER),Area-time equivalency ratio,Area-time equivalency ratio (ATER)
+Ash content,Ash content,Ash content
+Calories,Calories,Calories
+Crop appearance (including the size and shape of the edible parts),Crop appearance,Crop appearance
+"Crop biomass (including inedible components; e.g., the stems of some crops)",Crop biomass,Crop biomass
+"Crop damage or infection by pathogens (e.g., disease severity)",Crop damage or infection by pathogens,Crop damage or infection by pathogens
+Crop damage or infestation by pests,Crop damage or infestation by pests,Crop damage or infestation by pests
+"Crop propagules (including cuttings and seeds not used for food, feed, fuel, etc.)",Crop propagules,Crop propagules
+"Crop survival (e.g., germination rate)",Crop survival,Crop survival
+Crop yield (including harvest index),Crop yield (including harvest index),Crop yield (including harvest index)
+"Crop yield, n.e.c.",Crop yield other,Crop yield other
+"Dry matter content (i.e. proportion or percentage; also see ""Crop yield"" for dry matter yield)",Dry matter content,Dry matter content
+Fibre content,Fibre content,Fibre content
+"Invertebrate pest abundance (not measured in the crop; see ""Crop damage"" for infestation rate)",Invertebrate pest abundance,Invertebrate pest abundance
+Land equivalency ratio (LER),Land equivalency ratio (LER),Land equivalency ratio (LER)
+"Micronutrients and other elements (e.g., calcium [Ca] and magnesium [Mg])",Micronutrients and other elements,Micronutrients and other elements
+"Money, n.e.c.",Money,Money
+Nitrogen (N) in plants (including biological nitrogen fixation),Nitrogen (N) in plants,Nitrogen (N) in plants
+Phosphorus (P) in plants,Phosphorus (P) in plants,Phosphorus (P) in plants
+Phosphorus (P) in soils,Phosphorus (P) in soils,Phosphorus (P) in soils
+"Plant growth rate (e.g., photosynthetic rate or radiation use efficiency [RUE])",Plant growth rate,Plant growth rate
+"Plant size (e.g., canopy cover, ground cover, leaf area index [LAI], or height)",Plant size,Plant size
+Potassium (K) in plants,Potassium (K) in plants,Potassium (K) in plants
+Protein,Protein,Protein
+Soil aggregation,Soil aggregation,Soil aggregation
+Soil compaction,Soil compaction,Soil compaction
+Soil erosion (including soil loss through harvesting),Soil erosion,Soil erosion
+Starch,Starch,Starch
+Soil nutrient leaching (including nitrate leaching [NO3-]),Soil nutrient leaching,Soil nutrient leaching
+"Crop damage, infection, and infestation (also see pathogens, pests, and weeds)","Crop damage, infection, and infestation","Crop damage, infection, and infestation"
+Methane,Methane pollution,Methane pollution
+Nitrous oxide,Nitrous oxide pollution,Nitrous oxide pollution
+Carbon dioxide,Carbon dioxide pollution,Carbon dioxide pollution
