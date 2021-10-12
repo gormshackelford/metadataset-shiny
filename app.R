@@ -34,6 +34,7 @@ library(future)    # Tested with version 1.17.0
 library(shinyWidgets)
 library(cowplot)
 library(shinyBS)
+library(ipc)
 plan(multisession)
 
 options(warn = -1)     # Suppress warnings.
@@ -1398,6 +1399,9 @@ server <- function(input, output, session) {
   # This function gets the results of a meta-analysis (of the subset of data rows with values for
   # both the effect size ("es") and its variance ("v").
   get_results <- eventReactive(c(input$go, input$meta_regression_go), ignoreInit = T, {
+    progress <- AsyncProgress$new(session, min=1, max=10, message = "Running analysis...")
+    
+    progress$set(value=0.5, message= "Getting data")
     data <- get_data()
     d <- subset(data, es_and_v == TRUE)
     n_rows <- length(d$es_and_v)
@@ -1412,7 +1416,7 @@ server <- function(input, output, session) {
     # df <- subset(df, es_and_v == TRUE)
     # encoded_df <- get_encoded_df(df)
     # moderators_df <- get_moderators_df(df, encoded_df)
-    
+    progress$inc(amount=0.5, message= "Checking cache")
     
     future({
       if (read_data_from_cache == TRUE | save_data_to_cache == TRUE) {
@@ -1423,13 +1427,20 @@ server <- function(input, output, session) {
           "AWS_DEFAULT_REGION" = s3_credentials$AWS_DEFAULT_REGION
         )
       }
+      
       cached_results_exists <- FALSE
+      
       if (read_data_from_cache == TRUE) {
         cached_results_exists <- object_exists(cached_results, s3_bucket, check_region=TRUE)
       }
       if (cached_results_exists) {
+        progress$inc(amount=8, message= "Retrieving cached results")
         results <- s3readRDS(cached_results, s3_bucket, check_region=TRUE)
+        progress$inc(amount=8, message= "Finishing up")
       } else {
+        
+        progress$inc(amount=0.5, message= "Prepping meta-analysis")
+        
         if (n_rows > 0) {
           
           ###############
@@ -1440,8 +1451,14 @@ server <- function(input, output, session) {
           df_n_rows <- length(d$es_and_v)
           df_n_publications <- length(unique(d$publication))
           df_n_citations <- length(unique(d$citation))
+          
+          progress$inc(amount=1, message= "Running meta-analysis for all data")
+          if(df_n_rows > 1000){progress$inc(amount=1, message="This could take up to 30 minutes...")}
+          
           if (df_n_rows > 1) {
             meta_analysis <- rma.mv(yi = log_response_ratio, V = selected_v, random = ~ 1 | publication/study, data = d)
+
+            progress$inc(amount=5, message="Running meta-analyses for comparisons")
             
             pval <- meta_analysis$pval
             pval <- round(pval, 4)
@@ -1496,6 +1513,8 @@ server <- function(input, output, session) {
               QE = QE,
               QEp = QEp
             )
+            
+            
             
             if (df_n_rows== 1) {
               supergroup_results_df <- data.frame(
@@ -1561,6 +1580,8 @@ server <- function(input, output, session) {
               
               # We fit the default model (with inverse-variance weights, without relevance weights).
               subgroup_analysis <- rma.mv(yi = log_response_ratio, V = selected_v, random = ~ 1 | publication/study, data = d_sub)
+              
+              progress$inc(amount=4/length(comp_var_vals), message="Running meta-analyses for comparisons")
               
               ###################
               # Relevance weights
@@ -1823,11 +1844,15 @@ server <- function(input, output, session) {
           if (save_data_to_cache == TRUE) {
             s3saveRDS(results, object = cached_results, s3_bucket, check_region=TRUE)
           }
+          progress$inc(amount=1, "Saving results to cache")
         } else {  # if (n_rows == 0)
           results <- NA
         }
       }
+      progress$inc(amount=1, message="Finishing up")
       return(results)
+      progress$sequentialClose()
+      progress$close()
     })
   }) #end of get_results
   
@@ -2067,11 +2092,11 @@ server <- function(input, output, session) {
         lower_percent <- results[[1]]$supergroup_results$lower_percent
         upper_percent <- results[[1]]$supergroup_results$upper_percent
         HTML(paste(
-          "For your filtered data, overall this outcome category was <span class='bold'>", percent, " with this intervention category
-          </span> than it was without it (response ratio = ", effect_size, "). This effect was ",
+          "For all filtered data, this outcome(s) was <span class='bold'>", percent, "</span> with this intervention(s)
+           than it was without it (response ratio = ", effect_size, "). This effect was ",
           if (pval >= 0.05) "<span class='red bold'>not " else "<span class='bold'>", "statistically
-          significant (P = ", format(pval), ")</span>. This outcome could have been <span class='bold'>
-          between ", lower_percent, " and ", upper_percent, "</span> with this intervention than it
+          significant (P = ", format(pval), ")</span>. This outcome(s) could have been <span class='bold'>
+          between ", lower_percent, " and ", upper_percent, "</span> with this intervention(s) than it
           would have been without it (", ci.lb, " &#8804; response ratio &#8804; ", ci.ub, " in the 95%
           confidence interval). Please also see the &quot;Value judgements&quot; tab.
           <br /><br />
