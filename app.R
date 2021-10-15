@@ -2120,7 +2120,7 @@ server <- function(input, output, session) {
           sep = ""
         ))
       } else {  # if (is.na(results))
-        HTML("<span class='red'>Sorry no data available. Please refresh the data and use fewer filters.</span>")
+        HTML("<span class='red'>Sorry no data available. Please refresh the data, use less specific filters, and make use of the 'update filters' button.</span>")
       }
     }
 })
