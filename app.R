@@ -521,9 +521,13 @@ server <- function(input, output, session) {
       names(df)[names(df) == "experiment.methods"] <- "methods"
       df$methods <- lapply(df$methods, unlist)
       
-      # Results
-      names(df)[names(df) == "experiment.results"] <- "results"
-      df$methods <- lapply(df$results, unlist)
+      # Short results
+      names(df)[names(df) == "experiment.shortresults"] <- "shortresults"
+      df$shortresults <- lapply(df$shortresults, unlist)
+      
+      # Long results
+      names(df)[names(df) == "experiment.longresults"] <- "longresults"
+      df$longresults <- lapply(df$longresults, unlist)
       
       # Citation
       names(df)[names(df) == "publication.title"] <- "publication"
