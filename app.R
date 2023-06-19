@@ -86,24 +86,21 @@ ui <- function(request) { fluidPage(
                          actionButton("go", "Get your results"),
                          HTML('<br />'),
                          HTML('<br />'),
-                         p('Bookmarking function under repair'),
                          actionButton("make_bookmark", "Bookmark your session"),
                          HTML('<br />'),
                          uiOutput('bookmark_link'),
                          HTML('<br />'),
                          HTML('<br />'),
-                         p('Click below to restore your session after using the bookmark link'),
-                         actionButton("restore_bookmark", "Restore your bookmarked session"),
                          HTML('<br />'),
                          uiOutput('refresh_button'),
                          HTML('<br />'),
-                         uiOutput('debug1'),
-                         HTML('<br />'),
-                         HTML('<br />'),
-                         uiOutput('debug2'),
-                         HTML('<br />'),
-                         HTML('<br />'),
-                         uiOutput('debug3'),
+                         # uiOutput('debug1'),
+                         # HTML('<br />'),
+                         # HTML('<br />'),
+                         # uiOutput('debug2'),
+                         # HTML('<br />'),
+                         # HTML('<br />'),
+                         # uiOutput('debug3'),
                          uiOutput("selected_filters"),
                          HTML('</div>'),
                          HTML('<div class="col-sm-8" id="col-central">'),
@@ -1010,7 +1007,7 @@ server <- function(input, output, session) {
   })
   
   output$selected_filters <- renderUI({
-    if(input$go | input$restore_bookmark){
+    if(input$go){
     tagList(
       HTML("<h2> Applied filters </h2>"),
       HTML("<h3> Species </h3>"),
@@ -1228,7 +1225,7 @@ server <- function(input, output, session) {
   }
   
   #### live filtering of data using data filters. Takes input and ensures filters are updated.
-  observeEvent(input$update_filters | input$go | input$restore_bookmark,{
+  observeEvent(input$update_filters | input$go,{
       new_df <- df
       
       if(!is.null(input[["Species"]])){
@@ -2326,7 +2323,7 @@ server <- function(input, output, session) {
   })
   
   
-  observeEvent(input$go | input$restore_bookmark | input$make_bookmark, {
+  observeEvent(input$go | input$make_bookmark, {
     if (bookmark != "") {
       bookmarked_settings <- paste("bookmarks_for_", cache, "settings_", bookmark, ".rds", sep = "")
       bookmarked_settings <- s3readRDS(bookmarked_settings, s3_bucket, check_region=TRUE)
@@ -2393,9 +2390,9 @@ server <- function(input, output, session) {
   #     results_by_study <- .
   #     results_by_study$log_response_ratio_se}})
   #output$debug1 <- renderPrint(get_filter(input[[paste(attributes_df$attribute[4])]], df[[paste(attributes_df$attribute[4])]]))
-  output$debug1 <- renderPrint(bookmarked_settings)
-  output$debug2 <- renderPrint(settings())
-  output$debug3 <- renderPrint(bookmarked_settings[["Species"]])
+  # output$debug1 <- renderPrint(bookmarked_settings)
+  # output$debug2 <- renderPrint(settings())
+  # output$debug3 <- renderPrint(bookmarked_settings[["Species"]])
   #output$debug2 <- renderPrint(rv[["read_data_from_cache"]])
   #output$debug2 <- renderPrint(settings()[1][[1]])
   
