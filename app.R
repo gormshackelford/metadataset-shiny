@@ -84,23 +84,32 @@ ui <- function(request) { fluidPage(
                          uiOutput("dropdownbutton_settings"),
                          HTML('<br />'),
                          actionButton("go", "Get your results"),
-                         #actionButton("make_bookmark", "Bookmark your session"),
                          HTML('<br />'),
-                         #uiOutput('bookmark_link'),
+                         HTML('<br />'),
+                         p('Bookmarking function under repair'),
+                         actionButton("make_bookmark", "Bookmark your session"),
+                         HTML('<br />'),
+                         uiOutput('bookmark_link'),
+                         HTML('<br />'),
+                         HTML('<br />'),
+                         p('Click below to restore your session after using the bookmark link'),
+                         actionButton("restore_bookmark", "Restore your bookmarked session"),
                          HTML('<br />'),
                          uiOutput('refresh_button'),
                          HTML('<br />'),
-                         #uiOutput('debug1'),
-                         #uiOutput('debug2'),
-                         #uiOutput('debug3'),
+                         uiOutput('debug1'),
+                         HTML('<br />'),
+                         HTML('<br />'),
+                         uiOutput('debug2'),
+                         HTML('<br />'),
+                         HTML('<br />'),
+                         uiOutput('debug3'),
                          uiOutput("selected_filters"),
                          HTML('</div>'),
                          HTML('<div class="col-sm-8" id="col-central">'),
                          HTML('<h1> Your custom analysis </h1>'),
                          materialSwitch('info_switch','Help (on/off)',value=TRUE,status='info'),
                          uiOutput("info_on"),
-                         HTML('<br />'),
-                         imageOutput('initial_plot',inline=TRUE),
                          imageOutput('subgroup_analysis_plot', inline = TRUE),
                          HTML('<br />'),
                          HTML('<br />'),
@@ -842,28 +851,43 @@ server <- function(input, output, session) {
   
   
   
-  # Use bookmarked settings, if they exist
-  # if (bookmark != "") {
-  #   bookmarked_settings <- paste("bookmarks_for_", cache, "settings_", bookmark, ".rds", sep = "")
-  #   bookmarked_settings <- s3readRDS(bookmarked_settings, s3_bucket, check_region=TRUE)
-  #   updateSelectInput(session, "column_names", selected = bookmarked_settings[["column_names"]])
-  #   updateSliderInput(session, "significant_p", value = bookmarked_settings[["significant_p"]])
-  #   updateSliderInput(session, "non_significant_p", value = bookmarked_settings[["non_significant_p"]])
-  #   updateCheckboxInput(session, "v_from_p", value = bookmarked_settings[["v_from_p"]])
-  #   updateCheckboxInput(session, "v_outliers", value = bookmarked_settings[["v_outliers"]])
-  #   updateSliderInput(session, "v_outliers_threshold", value = bookmarked_settings[["v_outliers_threshold"]])
-  #   updateCheckboxInput(session, "impute_v", value = bookmarked_settings[["impute_v"]])
-  #   for (this_attribute in attributes_df$encoded_attribute) {
-  #     updatePickerInput(session, this_attribute, selected = bookmarked_settings[[this_attribute]])
-  #   }
-  #   for (this_outcome in encoded_outcomes) {
-  #     updateCheckboxInput(session, this_outcome, value = bookmarked_settings[[this_outcome]])
-  #   }
-  # }
+  #Use bookmarked settings, if they exist
+  if (bookmark != "") {
+    bookmarked_settings <- paste("bookmarks_for_", cache, "settings_", bookmark, ".rds", sep = "")
+    bookmarked_settings <- s3readRDS(bookmarked_settings, s3_bucket, check_region=TRUE)
+
+    updateSelectInput(session, "column_names", selected = bookmarked_settings[["column_names"]])
+    updateSliderInput(session, "significant_p", value = bookmarked_settings[["significant_p"]])
+    updateSliderInput(session, "non_significant_p", value = bookmarked_settings[["non_significant_p"]])
+    updateCheckboxInput(session, "v_from_p", value = bookmarked_settings[["v_from_p"]])
+    updateCheckboxInput(session, "v_outliers", value = bookmarked_settings[["v_outliers"]])
+    updateSliderInput(session, "v_outliers_threshold", value = bookmarked_settings[["v_outliers_threshold"]])
+    updateCheckboxInput(session, "impute_v", value = bookmarked_settings[["impute_v"]])
+
+    # for (this_attribute in attributes_df$encoded_attribute) {
+    #   updatePickerInput(session, this_attribute, selected = bookmarked_settings[[this_attribute]])
+    # }
+    options_var <- c("Outcome categories"="hlo","Species"="Species","Intervention categories"="hli","Country"="Country")
+    updatePickerInput(session, "comparison_var", selected = bookmarked_settings[["comparison_var"]], choices = options_var)
+
+    optionshlo <- sort(unique(unlist(df[["hlo"]])))
+    optionsSpecies <- sort(unique(unlist(df[["Species"]])))
+    optionshli <- sort(unique(unlist(df[["hli"]])))
+    optionscountry <- sort(unique(unlist(df[["Country"]])))
+    updatePickerInput(session, "Species", selected = bookmarked_settings[["Species"]], choices = optionsSpecies) ### update the selector in the UI
+    updatePickerInput(session, "Country", selected = bookmarked_settings[["Country"]], choices = optionscountry)
+    updatePickerInput(session, "hli", selected = bookmarked_settings[["hli"]], choices = optionshli)
+    updatePickerInput(session, "hlo", selected = bookmarked_settings[["hlo"]], choices = optionshlo)
+    
+    # for (this_outcome in encoded_outcomes) {
+    #   updateCheckboxInput(session, this_outcome, value = bookmarked_settings[[this_outcome]])
+    # }
+  }
   
   ###################################################################################################
   # Reactive components
   ###################################################################################################
+  #Use bookmarked settings, if they exist
   output$dropdownbutton_filter <- renderUI({
     optionshlo <- sort(unique(unlist(df[["hlo"]])))
     optionsSpecies <- sort(unique(unlist(df[["Species"]])))
@@ -977,14 +1001,16 @@ server <- function(input, output, session) {
       tagList(
         HTML("<p>Use the icons on the right to customise the information you are interested in. You can filter the data to your question of interest and choose the kind of comparisons you wish to make (e.g., compare the effect of an intervention on different species, or the effect of different interventions on one species). The example figure below was generated on the effect of different interventions on the abundance of invasive species for several different invasive species.</p>"),
         HTML("<p>We suggest you first filter by the <em>species</em> and <em>outcomes</em> you are interested in, and then select the different <em>comparison variables</em> you wish to look across (e.g., compare different species, interventions, outcomes, or countries). Each time you select a filter, make sure to press update filters so you get an up-to-date view of the data available.</p>
-              <p>Then once you are happy with your first broad set of filters, press <em>'Get your results'</em>. A plot will load with a summary paragraph, and you can access more detailed information by clicking on the tabs at the top of the page. We then suggest you start step-by-step to use more specific filters (e.g., specify countries or particular intervention types) to narrow down the filters and results to reflect your local conditions and question of interest. (You can hide and unhide these help paragraphs by toggling the switch above).</p>
-              <h2>Example plot</h2>")
+              <p>Then once you are happy with your first broad set of filters, press <em>'Get your results'</em>. A plot will load with a summary paragraph, and you can access more detailed information by clicking on the tabs at the top of the page. We then suggest you start step-by-step to use more specific filters (e.g., specify countries or particular intervention types) to narrow down the filters and results to reflect your local conditions and question of interest. (You can hide and unhide these help paragraphs by toggling the switch above).</p>"),
+        h2('Example plot'),
+        HTML('<br />'),
+        imageOutput('initial_plot',inline=TRUE)
       )
     }
   })
   
   output$selected_filters <- renderUI({
-    if(input$go){
+    if(input$go | input$restore_bookmark){
     tagList(
       HTML("<h2> Applied filters </h2>"),
       HTML("<h3> Species </h3>"),
@@ -1031,7 +1057,7 @@ server <- function(input, output, session) {
   # Reactive values
   rv <- reactiveValues()
   rv[["analysis_button"]] <- "subgroup_analysis"
-  #rv[["bookmark_link"]] <- ""
+  rv[["bookmark_link"]] <- ""
   rv[["read_data_from_cache"]] <- read_data_from_cache
   
   
@@ -1202,7 +1228,7 @@ server <- function(input, output, session) {
   }
   
   #### live filtering of data using data filters. Takes input and ensures filters are updated.
-  observeEvent(input$update_filters | input$go,{
+  observeEvent(input$update_filters | input$go | input$restore_bookmark,{
       new_df <- df
       
       if(!is.null(input[["Species"]])){
@@ -2009,10 +2035,6 @@ server <- function(input, output, session) {
     list(src =  normalizePath('./figures/firstplot.svg'), width = "50%", height = "50%", contentType = 'image/svg+xml')
   },deleteFile = FALSE)
   
-  observeEvent(input$go, {
-    hide("initial_plot")
-  })
-  
   output$subgroup_analysis_plot <- renderImage({
     subgroup_df_list <- list()
     get_results() %...>% {
@@ -2286,25 +2308,58 @@ server <- function(input, output, session) {
   
   
   
-  # observeEvent(input$make_bookmark, {
-  #   bookmark_object <- paste("bookmarks_for_", cache, "settings_", digest(settings()), ".rds", sep = "")
-  #   if (save_data_to_cache == TRUE) {
-  #     s3saveRDS(settings(), object = bookmark_object, s3_bucket, check_region=TRUE)
-  #   }
-  #   rv[["bookmark_url"]] <- paste(protocol, "//", hostname, if (port != "") ":", port, pathname, "?bookmark=", digest(settings()), "&", api_query_string, sep="")
-  #   output$bookmark_link <- renderUI(HTML(paste(
-  #     "<br />",
-  #     "Save this link to reload your analysis later: <a id='shiny_bookmark' href='",
-  #     rv[["bookmark_url"]],
-  #     "'>",
-  #     rv[["bookmark_url"]],
-  #     "</a>",
-  #     "<br />"
-  #   )))
-  # })
+  observeEvent(input$make_bookmark, {
+    bookmark_object <- paste("bookmarks_for_", cache, "settings_", digest(settings()), ".rds", sep = "")
+    if (save_data_to_cache == TRUE) {
+      s3saveRDS(settings(), object = bookmark_object, s3_bucket, check_region=TRUE)
+    }
+    rv[["bookmark_url"]] <- paste(protocol, "//", hostname, if (port != "") ":", port, pathname, "?bookmark=", digest(settings()), "&", api_query_string, sep="")
+    output$bookmark_link <- renderUI(HTML(paste(
+      "<br />",
+      "Save this link to reload your analysis later: <a id='shiny_bookmark' href='",
+      rv[["bookmark_url"]],
+      "'>",
+      rv[["bookmark_url"]],
+      "</a>",
+      "<br />"
+    )))
+  })
   
   
-  
+  observeEvent(input$go | input$restore_bookmark | input$make_bookmark, {
+    if (bookmark != "") {
+      bookmarked_settings <- paste("bookmarks_for_", cache, "settings_", bookmark, ".rds", sep = "")
+      bookmarked_settings <- s3readRDS(bookmarked_settings, s3_bucket, check_region=TRUE)
+      
+      updateSelectInput(session, "column_names", selected = bookmarked_settings[["column_names"]])
+      updateSliderInput(session, "significant_p", value = bookmarked_settings[["significant_p"]])
+      updateSliderInput(session, "non_significant_p", value = bookmarked_settings[["non_significant_p"]])
+      updateCheckboxInput(session, "v_from_p", value = bookmarked_settings[["v_from_p"]])
+      updateCheckboxInput(session, "v_outliers", value = bookmarked_settings[["v_outliers"]])
+      updateSliderInput(session, "v_outliers_threshold", value = bookmarked_settings[["v_outliers_threshold"]])
+      updateCheckboxInput(session, "impute_v", value = bookmarked_settings[["impute_v"]])
+      
+      # for (this_attribute in attributes_df$encoded_attribute) {
+      #   updatePickerInput(session, this_attribute, selected = bookmarked_settings[[this_attribute]])
+      # }
+      options_var <- c("Outcome categories"="hlo","Species"="Species","Intervention categories"="hli","Country"="Country")
+      updatePickerInput(session, "comparison_var", selected = bookmarked_settings[["comparison_var"]], choices = options_var)
+      
+      
+      optionshlo <- sort(unique(unlist(df[["hlo"]])))
+      optionsSpecies <- sort(unique(unlist(df[["Species"]])))
+      optionshli <- sort(unique(unlist(df[["hli"]])))
+      optionscountry <- sort(unique(unlist(df[["Country"]])))
+      updatePickerInput(session, "Species", selected = bookmarked_settings[["Species"]], choices = optionsSpecies) ### update the selector in the UI
+      updatePickerInput(session, "Country", selected = bookmarked_settings[["Country"]], choices = optionscountry)
+      updatePickerInput(session, "hli", selected = bookmarked_settings[["hli"]], choices = optionshli)
+      updatePickerInput(session, "hlo", selected = bookmarked_settings[["hlo"]], choices = optionshlo)
+      
+      # for (this_outcome in encoded_outcomes) {
+      #   updateCheckboxInput(session, this_outcome, value = bookmarked_settings[[this_outcome]])
+      #   }
+    }
+  })
   
 
   # output$debug1 <- renderPrint({
@@ -2338,9 +2393,9 @@ server <- function(input, output, session) {
   #     results_by_study <- .
   #     results_by_study$log_response_ratio_se}})
   #output$debug1 <- renderPrint(get_filter(input[[paste(attributes_df$attribute[4])]], df[[paste(attributes_df$attribute[4])]]))
-  #output$debug1 <- renderPrint(bookmarked_settings)
-  #output$debug2 <- renderPrint(settings())
-  #output$debug2 <- renderPrint(settings())
+  output$debug1 <- renderPrint(bookmarked_settings)
+  output$debug2 <- renderPrint(settings())
+  output$debug3 <- renderPrint(bookmarked_settings[["Species"]])
   #output$debug2 <- renderPrint(rv[["read_data_from_cache"]])
   #output$debug2 <- renderPrint(settings()[1][[1]])
   
